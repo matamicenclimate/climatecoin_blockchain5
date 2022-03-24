@@ -3,15 +3,9 @@
 
 from pyteal import *
 
-from src.utils import aoptin, axfer, ensure_opted_in
+from pyteal_utils import aoptin, axfer, ensure_opted_in
 
 TEAL_VERSION = 6
-
-# Schema
-ORACLE_GLOBAL_BYTES = 1
-ORACLE_GLOBAL_INTS = 1
-ORACLE_LOCAL_BYTES = 0
-ORACLE_LOCAL_INTS = 0
 
 # Global Vars
 NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
@@ -38,7 +32,7 @@ def swap_nft_to_fungible():
     return Seq([
         valid_swap,
         ensure_opted_in(Txn.application_args[1]),
-        axfer(Txn.sender, App.globalGet(CLIMATECOIN_ASA_ID), nft_value),
+        axfer(Txn.sender(), App.globalGet(CLIMATECOIN_ASA_ID), nft_value),
         Int(1)
     ])
 
@@ -47,12 +41,8 @@ mint_climatecoin_selector = MethodSignature(
 )
 @Subroutine(TealType.uint64)
 def mint_climatecoin():
-    valid_mint = Seq([
-        Assert(App.globalGet(CLIMATECOIN_ASA_ID) == 0),
-        Assert(Txn.sender == Global.creator_address())
-    ])
     return Seq([
-        valid_mint,
+        Assert(App.globalGet(CLIMATECOIN_ASA_ID) == Int(0)),
         InnerTxnBuilder.Begin(),    
         # This method accepts a dictionary of TxnField to value so all fields may be set 
         InnerTxnBuilder.SetFields({ 
@@ -78,38 +68,40 @@ set_minter_address_selector = MethodSignature(
 )
 def set_minter_address():
     is_owner = Seq([
-        Assert(Txn.sender == Global.creator_address())
+        Assert(Txn.sender() == Global.creator_address())
     ])
     return Seq([
         is_owner,
-        App.globalPut(NFT_MINTER_ADDRESS, Addr(Txn.application_args[1])),
+        App.globalPut(NFT_MINTER_ADDRESS, Txn.application_args[1]),
         Int(1)
     ])
 
 def contract():
     def initialize_vault():
         return Seq([
-            App.globalPut(NFT_MINTER_ADDRESS, Itob(0)),
+            # App.globalPut(NFT_MINTER_ADDRESS, Itob(Int(0))),
             App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
             Int(1)
         ])
 
+    from_creator = Txn.sender() == Global.creator_address()
+
     handle_noop = Cond(
-        [Txn.application_args[0] == Bytes('mint_climatecoin'), Return(mint_climatecoin())],
-        [Txn.application_args[0] == Bytes('set_minter_address'), Return(set_minter_address())],
-        [Txn.application_args[0] == Bytes('swap_nft_for_coins'), Return(swap_nft_to_fungible())],
+        [And(Txn.application_args[0] == mint_climatecoin_selector, from_creator), mint_climatecoin()],
+        [And(Txn.application_args[0] == set_minter_address_selector, from_creator), set_minter_address()],
+        [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
     )
 
     program = Cond(
         #  handle app creation
-        [Txn.application_id() == Int(0), initialize_vault()],
+        [Txn.application_id() == Int(0), Return(initialize_vault())],
         #  allow all to opt-in and close-out
         [Txn.on_completion() == OnComplete.OptIn, Approve()],
         [Txn.on_completion() == OnComplete.CloseOut, Approve()],
         #  allow creator to update and delete app
         [Txn.on_completion() == OnComplete.DeleteApplication, Return(Txn.sender() == Global.creator_address())],
         [Txn.on_completion() == OnComplete.UpdateApplication, Return(Txn.sender() == Global.creator_address())],
-        [Txn.on_completion() == OnComplete.NoOp, handle_noop]
+        [Txn.on_completion() == OnComplete.NoOp, Return(handle_noop)]
     )
 
     return compileTeal(program, Mode.Application, version=TEAL_VERSION)
