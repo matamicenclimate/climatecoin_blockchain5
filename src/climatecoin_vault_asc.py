@@ -3,7 +3,7 @@
 
 from pyteal import *
 
-from blockchain.utils import aoptin
+from src.utils import aoptin, ensure_opted_in
 
 TEAL_VERSION = 6
 
@@ -17,16 +17,32 @@ ORACLE_LOCAL_INTS = 0
 GLOBAL_NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
 GLOBAL_CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 
-def ct_oracle_clear():
-    return Seq([
-        Approve()
+
+
+swap_nft_to_fungible_selector = MethodSignature(
+    "swap_nft_to_fungible(asset,uint64)void"
+)
+
+@Subroutine(TealType.uint64)
+def swap_nft_to_fungible():
+    transfer_txn = Gtxn[0]
+    oracle_txn = Gtxn[1]
+
+    valid_swap = Seq([
+        Assert(Global.group_size() == Int(3)),
+        #  this application serves as the escrow for the fee
+        # Assert(payment_txn.receiver() == Global.current_application_address()),
+        # Assert(payment_txn.type_enum() == TxnType.Payment),
+        # Assert(payment_txn.amount() == App.globalGet(GLOBAL_SERVICE_FEE)),
     ])
 
-def ct_oracle_clear_asc1():
-    return compileTeal(ct_oracle_clear(), Mode.Application, version=TEAL_VERSION)
+    return Seq([
+        valid_swap,
+        ensure_opted_in(Txn.application_args[1]),
+        Int(1)
+    ])
 
-
-def ct_oracle():
+def contract():
 
     def initialize_vault():
         return Seq([
@@ -42,10 +58,8 @@ def ct_oracle():
 
     #  the fee payment transactions is always 1 transaction before the application call
     payment_txn = Gtxn[Txn.group_index() - Int(1)]
-
     mint_climatecoin = Seq([
         InnerTxnBuilder.Begin(),    
-
         # This method accepts a dictionary of TxnField to value so all fields may be set 
         InnerTxnBuilder.SetFields({ 
             TxnField.type_enum: TxnType.AssetConfig,
@@ -69,15 +83,11 @@ def ct_oracle():
         Int(1)
     ])
 
-    swap_nft_for_climatecoin = Seq([
-        Int(1)
-    ])
-
     handle_noop = Cond(
         [Txn.application_args[0] == Bytes('nft_optin'), Return(nft_optin)],
         [Txn.application_args[0] == Bytes('mint_climatecoin'), Return(mint_climatecoin)],
         [Txn.application_args[0] == Bytes('set_minter_address'), Return(set_minter_address)],
-        [Txn.application_args[0] == Bytes('swap_nft_for_coins'), Return(swap_nft_for_climatecoin)],
+        [Txn.application_args[0] == Bytes('swap_nft_for_coins'), Return(swap_nft_to_fungible())],
     )
 
     program = Cond(
@@ -85,7 +95,7 @@ def ct_oracle():
         [Txn.application_id() == Int(0), initialize_vault()],
         #  allow all to opt-in and close-out
         [Txn.on_completion() == OnComplete.OptIn, Approve()],
-        [Txn.on_completion() == OnComplete.CloseOut, ct_oracle_clear()],
+        [Txn.on_completion() == OnComplete.CloseOut, Approve()],
         #  allow creator to update and delete app
         [Txn.on_completion() == OnComplete.DeleteApplication, Return(Txn.sender() == Global.creator_address())],
         [Txn.on_completion() == OnComplete.UpdateApplication, Return(Txn.sender() == Global.creator_address())],
@@ -94,16 +104,18 @@ def ct_oracle():
 
     return compileTeal(program, Mode.Application, version=TEAL_VERSION)
 
+def contract_clear():
+    return compileTeal(Approve(), Mode.Application, version=TEAL_VERSION)
 
 if __name__ == '__main__':
-    filename = 'ct_oracle.teal'
+    filename = 'climatecoin_vault.teal'
     with open(filename, 'w') as f:
-        compiled = ct_oracle()
+        compiled = contract()
         f.write(compiled)
         print(f'compiled {filename}')
 
-    filename = 'ct_oracle_clear.teal'
+    filename = 'climatecoin_vault_clear.teal'
     with open(filename, 'w') as f:
-        compiled = ct_oracle_clear()
+        compiled = contract_clear()
         f.write(compiled)
         print(f'compiled {filename}')
