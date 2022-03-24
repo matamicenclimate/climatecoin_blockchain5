@@ -14,10 +14,8 @@ ORACLE_LOCAL_BYTES = 0
 ORACLE_LOCAL_INTS = 0
 
 # Global Vars
-GLOBAL_NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
-GLOBAL_CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
-
-
+NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
+CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 
 swap_nft_to_fungible_selector = MethodSignature(
     "swap_nft_to_fungible(asset,uint64)void"
@@ -42,23 +40,17 @@ def swap_nft_to_fungible():
         Int(1)
     ])
 
-def contract():
-
-    def initialize_vault():
-        return Seq([
-            App.globalPut(GLOBAL_NFT_MINTER_ADDRESS, Itob(0)),
-            App.globalPut(GLOBAL_CLIMATECOIN_ASA_ID, Int(0)),
-            Int(1)
-        ])
-
-    
-    nft_optin = Seq([
-        aoptin(Global.current_application_address, Txn.application_args[1])
+mint_climatecoin_selector = MethodSignature(
+    "mint_climatecoin(string,string,uint64)void"
+)
+@Subroutine(TealType.uint64)
+def mint_climatecoin():
+    valid_mint = Seq([
+        Assert(App.globalGet(CLIMATECOIN_ASA_ID) == 0),
+        Assert(Txn.sender == Global.creator_address())
     ])
-
-    #  the fee payment transactions is always 1 transaction before the application call
-    payment_txn = Gtxn[Txn.group_index() - Int(1)]
-    mint_climatecoin = Seq([
+    return Seq([
+        valid_mint,
         InnerTxnBuilder.Begin(),    
         # This method accepts a dictionary of TxnField to value so all fields may be set 
         InnerTxnBuilder.SetFields({ 
@@ -72,21 +64,35 @@ def contract():
             TxnField.config_asset_total: Btoi(Txn.application_args[3]),
             TxnField.config_asset_decimals: Int(0),
         }),
-
         # Submit the transaction we just built
         InnerTxnBuilder.Submit(),   
+        # TODO: store in global the id of the minted asa
+        App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
         Int(1)
     ]) 
 
-    set_minter_address = Seq([
-        App.globalPut(GLOBAL_NFT_MINTER_ADDRESS, Addr(Txn.application_args[1])),
+
+def set_minter_address():
+    is_owner = Seq([
+        Assert(Txn.sender == Global.creator_address())
+    ])
+    return Seq([
+        is_owner,
+        App.globalPut(NFT_MINTER_ADDRESS, Addr(Txn.application_args[1])),
         Int(1)
     ])
 
+def contract():
+    def initialize_vault():
+        return Seq([
+            App.globalPut(NFT_MINTER_ADDRESS, Itob(0)),
+            App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
+            Int(1)
+        ])
+
     handle_noop = Cond(
-        [Txn.application_args[0] == Bytes('nft_optin'), Return(nft_optin)],
-        [Txn.application_args[0] == Bytes('mint_climatecoin'), Return(mint_climatecoin)],
-        [Txn.application_args[0] == Bytes('set_minter_address'), Return(set_minter_address)],
+        [Txn.application_args[0] == Bytes('mint_climatecoin'), Return(mint_climatecoin())],
+        [Txn.application_args[0] == Bytes('set_minter_address'), Return(set_minter_address())],
         [Txn.application_args[0] == Bytes('swap_nft_for_coins'), Return(swap_nft_to_fungible())],
     )
 
