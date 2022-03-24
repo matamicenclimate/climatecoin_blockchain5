@@ -2,9 +2,6 @@
 # https://github.com/ori-shem-tov/vrf-oracle/blob/vrf-teal5/pyteal/teal5.py
 
 from pyteal import *
-import dataclasses
-from algosdk import encoding
-from base64 import b32encode, b64encode, b64decode
 
 TEAL_VERSION = 6
 
@@ -18,7 +15,6 @@ ORACLE_LOCAL_INTS = 0
 GLOBAL_NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
 GLOBAL_CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 
-
 def ct_oracle_clear():
     return Seq([
         Approve()
@@ -30,30 +26,39 @@ def ct_oracle_clear_asc1():
 
 def ct_oracle():
 
-    def initialize_oracle():
+    def initialize_vault():
         return Seq([
-            Approve()
+            App.globalPut(GLOBAL_NFT_MINTER_ADDRESS, Itob(0)),
+            App.globalPut(GLOBAL_CLIMATECOIN_ASA_ID, Int(0)),
+            Int(1)
         ])
 
     #  the fee payment transactions is always 1 transaction before the application call
     payment_txn = Gtxn[Txn.group_index() - Int(1)]
 
     mint_climatecoin = Seq([
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetConfig,
-                # TxnField.receiver: App.globalGet(GLOBAL_OWNER_ADDRESS),
-                TxnField.amount: Int(0),
-                TxnField.fee: Int(0),
-                TxnField.application_id: App.globalGet(LOCAL_CALLBACK_CONTRACT_ID)
-            }
-        ),
-        InnerTxnBuilder.Submit(),
+        InnerTxnBuilder.Begin(),    
+
+        # This method accepts a dictionary of TxnField to value so all fields may be set 
+        InnerTxnBuilder.SetFields({ 
+            TxnField.type_enum: TxnType.AssetConfig,
+            TxnField.config_asset_name: Txn.application_args[1],
+            TxnField.config_asset_unit_name: Txn.application_args[2],
+            TxnField.config_asset_manager: Global.current_application_address(),
+            TxnField.config_asset_clawback: Global.current_application_address(),
+            TxnField.config_asset_reserve: Global.current_application_address(),
+            TxnField.config_asset_freeze: Global.current_application_address(),
+            TxnField.config_asset_total: Btoi(Txn.application_args[3]),
+            TxnField.config_asset_decimals: Int(0),
+        }),
+
+        # Submit the transaction we just built
+        InnerTxnBuilder.Submit(),   
         Int(1)
     ]) 
 
     set_minter_address = Seq([
+        App.globalPut(GLOBAL_NFT_MINTER_ADDRESS, Addr(Txn.application_args[1])),
         Int(1)
     ])
 
@@ -62,15 +67,14 @@ def ct_oracle():
     ])
 
     handle_noop = Cond(
-        [Txn.application_args[0] == Bytes('request'), Return(request)],
-        [Txn.application_args[0] == Bytes('respond'), (respond)],
-        [Txn.application_args[0] == Bytes('set_callback'), Approve()],
-        [Txn.application_args[0] == Bytes('cancel'), (cancel)],
+        [Txn.application_args[0] == Bytes('mint_climatecoin'), Return(mint_climatecoin)],
+        [Txn.application_args[0] == Bytes('set_minter_address'), Return(set_minter_address)],
+        [Txn.application_args[0] == Bytes('swap_nft_for_coins'), Return(swap_nft_for_climatecoin)],
     )
 
     program = Cond(
         #  handle app creation
-        [Txn.application_id() == Int(0), initialize_oracle(cfg)],
+        [Txn.application_id() == Int(0), initialize_vault()],
         #  allow all to opt-in and close-out
         [Txn.on_completion() == OnComplete.OptIn, Approve()],
         [Txn.on_completion() == OnComplete.CloseOut, ct_oracle_clear()],
