@@ -3,6 +3,8 @@
 
 from pyteal import *
 
+from blockchain.utils import aoptin
+
 TEAL_VERSION = 6
 
 # Schema
@@ -32,6 +34,11 @@ def ct_oracle():
             App.globalPut(GLOBAL_CLIMATECOIN_ASA_ID, Int(0)),
             Int(1)
         ])
+
+    
+    nft_optin = Seq([
+        aoptin(Global.current_application_address, Txn.application_args[1])
+    ])
 
     #  the fee payment transactions is always 1 transaction before the application call
     payment_txn = Gtxn[Txn.group_index() - Int(1)]
@@ -67,6 +74,7 @@ def ct_oracle():
     ])
 
     handle_noop = Cond(
+        [Txn.application_args[0] == Bytes('nft_optin'), Return(nft_optin)],
         [Txn.application_args[0] == Bytes('mint_climatecoin'), Return(mint_climatecoin)],
         [Txn.application_args[0] == Bytes('set_minter_address'), Return(set_minter_address)],
         [Txn.application_args[0] == Bytes('swap_nft_for_coins'), Return(swap_nft_for_climatecoin)],
