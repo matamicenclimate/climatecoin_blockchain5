@@ -35,3 +35,18 @@ def ensure_opted_in(asset_id):
             ),
         ),
     )
+
+@Subroutine(TealType.none)
+def axfer(reciever, aid, amt):
+    return Seq(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetTransfer,
+                TxnField.xfer_asset: aid,
+                TxnField.asset_amount: amt,
+                TxnField.asset_receiver: reciever,
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+    )

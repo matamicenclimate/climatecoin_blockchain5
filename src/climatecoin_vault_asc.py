@@ -3,7 +3,7 @@
 
 from pyteal import *
 
-from src.utils import aoptin, ensure_opted_in
+from src.utils import aoptin, axfer, ensure_opted_in
 
 TEAL_VERSION = 6
 
@@ -20,7 +20,6 @@ CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 swap_nft_to_fungible_selector = MethodSignature(
     "swap_nft_to_fungible(asset,uint64)void"
 )
-
 @Subroutine(TealType.uint64)
 def swap_nft_to_fungible():
     transfer_txn = Gtxn[0]
@@ -29,14 +28,17 @@ def swap_nft_to_fungible():
     valid_swap = Seq([
         Assert(Global.group_size() == Int(3)),
         #  this application serves as the escrow for the fee
-        # Assert(payment_txn.receiver() == Global.current_application_address()),
+        Assert(transfer_txn.type_enum() == TxnType.AssetTransfer),
+        Assert(transfer_txn.xfer_asset() == Btoi(Txn.application_args[1])),
         # Assert(payment_txn.type_enum() == TxnType.Payment),
         # Assert(payment_txn.amount() == App.globalGet(GLOBAL_SERVICE_FEE)),
     ])
 
+    nft_value = oracle_txn.application_args[1]
     return Seq([
         valid_swap,
         ensure_opted_in(Txn.application_args[1]),
+        axfer(Txn.sender, App.globalGet(CLIMATECOIN_ASA_ID), nft_value),
         Int(1)
     ])
 
@@ -71,7 +73,9 @@ def mint_climatecoin():
         Int(1)
     ]) 
 
-
+set_minter_address_selector = MethodSignature(
+    "set_minter_address(account)void"
+)
 def set_minter_address():
     is_owner = Seq([
         Assert(Txn.sender == Global.creator_address())

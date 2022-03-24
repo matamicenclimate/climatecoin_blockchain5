@@ -1,20 +1,24 @@
+from email.headerregistry import Address
 from algosdk import *
 from algosdk.v2client import algod
 from algosdk.v2client.models import DryrunSource, DryrunRequest
 from algosdk.future.transaction import *
-from sandbox import get_accounts
 import base64
-import json
 import os
 
+from src.climatecoin_vault_asc import mint_climatecoin_selector
+
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-url = "http://localhost:4001"
+url = "https://node.testnet.algoexplorerapi.io"
+deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
 
 client = algod.AlgodClient(token, url)
 
 def demo():
     # Create acct
-    addr, pk = get_accounts()[0]
+    # addr, pk = get_accounts()[0]
+    pk = mnemonic.to_private_key(deployer_mnemonic)
+    addr = account.address_from_private_key(pk)
     print("Using {}".format(addr))
 
     # Create app
@@ -27,7 +31,7 @@ def demo():
     sp = client.suggested_params()
     txn_group = assign_group_id([
         get_fund_txn(addr, sp, app_addr, 500000),
-        get_app_call(addr, sp, app_id, ["inner-txn-demo", "itxnd", (1000).to_bytes(8,'big')]), 
+        get_app_call(addr, sp, app_id, [mint_climatecoin_selector, "itxnd", (1000).to_bytes(8,'big')]), 
     ])
 
     signed_group = [txn.sign(pk) for txn in txn_group]
