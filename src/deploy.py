@@ -5,6 +5,8 @@ from algosdk.v2client.models import DryrunSource, DryrunRequest
 from algosdk.future.transaction import *
 from algosdk.atomic_transaction_composer import *
 from algosdk.abi import *
+from algosdk.encoding import checksum, encode_address
+from algosdk import util
 
 from sandbox import get_accounts
 
@@ -29,6 +31,9 @@ def get_method(i: Interface, name: str) -> Method:
             return m
     raise Exception("No method with the name {}".format(name))
 
+def get_escrow_from_app(app_id):
+    return encode_address(checksum(b"appID" + (app_id).to_bytes(8, "big")))
+
 
 def demo():
     # Create acct
@@ -48,10 +53,16 @@ def demo():
     signer = AccountTransactionSigner(pk)
     sp = client.suggested_params()
     print(mint_climatecoin_selector.methodName)
+    
+    atc.add_transaction(
+        TransactionWithSigner(
+            txn=PaymentTxn(addr, sp, get_escrow_from_app(app_id), util.algos_to_microalgos(1), None), signer=signer
+        )
+    )
 
-    app_call_txn = get_app_call(addr, sp, app_id, [get_method(iface, "mint_climatecoin"), "Climatecoin", "CC"])
-    tws = TransactionWithSigner(app_call_txn, signer)
-    atc.add_transaction(tws)
+    sp.fee = sp.min_fee * 3
+
+    atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, signer, ["Climatecoin", "CC"])
     
     result = atc.execute(client, 4)
     for res in result.abi_results:

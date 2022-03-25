@@ -56,6 +56,7 @@ def mint_climatecoin():
             TxnField.config_asset_total: Int(150_000_000),
             # TxnField.config_asset_total: Int(0),
             TxnField.config_asset_decimals: Int(0),
+            TxnField.fee: Int(0),
         }),
         # Submit the transaction we just built
         InnerTxnBuilder.Submit(),   
