@@ -12,6 +12,18 @@
       "desc": "sets the nft minter address",
       "args": [{ "name": "minter_address", "type": "address" }],
       "returns": { "type": "address" }
+    },
+    {
+      "name": "set_oracle_address",
+      "desc": "sets the oracle address",
+      "args": [{ "name": "oracle_address", "type": "address" }],
+      "returns": { "type": "address" }
+    },
+    {
+      "name": "set_swap_price",
+      "desc": "sets the swap price. (signed by oracle)",
+      "args": [{ "name": "swap_price", "type": "uint64" }],
+      "returns": { "type": "uint64" }
     }
   ]
 }

@@ -42,10 +42,6 @@ def demo():
     addr, pk = get_accounts()[0]
     print("Using {}".format(addr))
 
-    # this will be our backend oracle, but we mock it for now
-    oracle_addr, oracle_pk = get_accounts()[1]
-    print("Using oracle {}".format(oracle_addr))
-    
     # Create app
     app_id = create_app(addr, pk)
     print("Created App with id: {}".format(app_id))
@@ -53,8 +49,6 @@ def demo():
     app_addr = logic.get_application_address(app_id)
     print("Application Address: {}".format(app_addr))
 
-    #
-    # Setup the smart contract
     atc = AtomicTransactionComposer()
     signer = AccountTransactionSigner(pk)
     sp = client.suggested_params()
@@ -70,30 +64,16 @@ def demo():
 
     atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, signer)
     atc.add_method_call(app_id, get_method(iface, "set_minter_address"), addr, sp, signer, [addr])
-    atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, signer, [oracle_addr])
     
     result = atc.execute(client, 4)
     for res in result.abi_results:
         print(res.return_value)
 
-    #
-    # Mint  some nfts
-
-    nft_id = create_asset(addr, pk)
-    print("Created CO2 nft {}".format(nft_id))
-
-    #
-    # Swap them
-    atc = AtomicTransactionComposer()
-    oracle = AccountTransactionSigner(oracle_pk)
-
-    atc.add_method_call(app_id, get_method(iface, "set_swap_price"), oracle_addr, sp, oracle, [100])
-
 
 def get_app_call(addr, sp, app_id, args):
     return ApplicationCallTxn(
         addr, sp, app_id, 
-        OnComplete.NoOpOC,
+        OnComplete.NoOpOC, 
         app_args=args,
     )
 
@@ -108,7 +88,7 @@ def create_app(addr, pk):
     # Read in clear teal source && compile 
     clear_program = compile_program(client, contract_clear())
 
-    global_schema = StateSchema(2, 2)
+    global_schema = StateSchema(2, 1)
     local_schema = StateSchema(0, 0)
 
     # Create the transaction
@@ -124,38 +104,6 @@ def create_app(addr, pk):
     result = wait_for_confirmation(client, txid)
 
     return result['application-index']
-
-
-def create_asset(addr, pk):
-    # Get suggested params from network 
-    sp = client.suggested_params()
-
-    # Create the transaction
-    asset_config_txn = AssetConfigTxn(
-        addr,
-        sp,
-        total=1,
-        manager=addr,
-        reserve=addr,
-        freeze=addr,
-        clawback=addr,
-        unit_name="CO2",
-        asset_name="CO2NFT@arc-69", 
-        url="daiwal.com",
-        default_frozen=0
-    )
-    
-    # Sign it
-    signed_txn = asset_config_txn.sign(pk)
-
-    # Ship it
-    txid = client.send_transaction(signed_txn)
-    
-    # Wait for the result so we can return the app id
-    result = wait_for_confirmation(client, txid)
-
-    return result["asset-index"]
-
 
 if __name__ == "__main__":
     demo()
