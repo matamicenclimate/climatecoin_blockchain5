@@ -51,8 +51,8 @@ def demo():
     print("Using {}".format(addr))
 
     # this will be our backend oracle, but we mock it for now
-    oracle_addr, oracle_pk = get_accounts()[1]
-    print("Using oracle {}".format(oracle_addr))
+    # oracle_addr, oracle_pk = get_accounts()[1]
+    # print("Using oracle {}".format(oracle_addr))
     
     # Create app
     app_id = create_app(addr, pk)
@@ -76,7 +76,7 @@ def demo():
 
     atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, addr_signer, [])
     atc.add_method_call(app_id, get_method(iface, "set_minter_address"), addr, sp, addr_signer, [addr])
-    atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
+    # atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
     
     result = atc.execute(client, 4)
     for res in result.abi_results:

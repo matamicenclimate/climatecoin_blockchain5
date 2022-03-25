@@ -118,28 +118,6 @@ def set_minter_address():
         Int(1)
     )
 
-set_swap_price_selector = MethodSignature(
-    "set_swap_price(uint64)uint64"
-)
-@Subroutine(TealType.uint64)
-def set_swap_price():
-    is_request_from_oracle = Txn.sender() == App.globalGet(ORACLE_ADDRESS),
-    return Seq(
-        Log(Concat(return_prefix, Txn.application_args[1])),
-        Int(1)
-    )
-
-set_oracle_address_selector = MethodSignature(
-    "set_oracle_address(address)address"
-)
-@Subroutine(TealType.uint64)
-def set_oracle_address():
-    return Seq(
-        App.globalPut(ORACLE_ADDRESS, Txn.application_args[1]),
-        Log(Concat(return_prefix, Txn.application_args[1])),
-        Int(1)
-    )
-
 move_selector = MethodSignature(
     "move(asset,account,account,uint64)void"
 )
@@ -180,11 +158,9 @@ def contract():
     handle_noop = Cond(
         [And(Txn.application_args[0] == mint_climatecoin_selector, from_creator), mint_climatecoin()],
         [And(Txn.application_args[0] == set_minter_address_selector, from_creator), set_minter_address()],
-        [And(Txn.application_args[0] == set_oracle_address_selector, from_creator), set_oracle_address()],
         [And(Txn.application_args[0] == move_selector, from_creator), move()],
         [And(Txn.application_args[0] == create_selector, from_creator), create_nft()],
         [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
-        [Txn.application_args[0] == set_swap_price_selector, set_swap_price()],
     )
 
     return Cond(
