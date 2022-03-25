@@ -15,9 +15,9 @@ ORACLE_ADDRESS=Bytes('oracle_address')
 CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 
 
-create_selector = MethodSignature("create_nft()uint64")
-
-
+create_selector = MethodSignature(
+    "create_nft(string,string)uint64"
+)
 @Subroutine(TealType.uint64)
 def create_nft():
     return Seq(
@@ -34,6 +34,8 @@ def create_nft():
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 # TODO: why cant we move it if tits frozen?
                 TxnField.config_asset_default_frozen: Int(0),
+                # TxnField.config_asset_metadata_hash: Txn.application_args[1],
+                # TxnField.note: Txn.application_args[2]
             }
         ),
         InnerTxnBuilder.Submit(),

@@ -15,6 +15,10 @@ from src.contracts.climatecoin_vault_asc import get_approval, get_clear
 from src.utils import print_asset_holding
 from utils import compile_program, wait_for_confirmation
 
+import json
+import hashlib
+import base64
+
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 url = "http://localhost:4001"
 # url = "https://node.testnet.algoexplorerapi.io"
@@ -69,7 +73,7 @@ def demo():
 
     sp.fee = sp.min_fee * 3
 
-    atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, addr_signer)
+    atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, addr_signer, [])
     atc.add_method_call(app_id, get_method(iface, "set_minter_address"), addr, sp, addr_signer, [addr])
     atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
     
@@ -98,7 +102,18 @@ def demo():
             txn=PaymentTxn(addr, sp, app_addr, int(1e8)), signer=addr_signer
         )
     )
-    atc.add_method_call(app_id, get_method(iface, "create_nft"), addr, sp, addr_signer)
+    # Dummy metadata
+    metadata = {
+        "type": "from_date",
+        "from": "1/1/2022"
+    }
+    metadata_json = json.dumps(metadata)
+    metadata_hash = hashlib.sha256(metadata_json.encode()).digest()
+    hash_as_str=base64.b32encode(metadata_hash).decode('utf-8')
+    print(hash_as_str)
+    print(len(hash_as_str))
+
+    atc.add_method_call(app_id, get_method(iface, "create_nft"), addr, sp, addr_signer, [hash_as_str, metadata_json])
     results = atc.execute(client, 2)
 
     created_nft_id = results.abi_results[0].return_value
