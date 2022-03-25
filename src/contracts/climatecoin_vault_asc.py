@@ -15,7 +15,7 @@ ORACLE_ADDRESS=Bytes('oracle_address')
 CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 
 swap_nft_to_fungible_selector = MethodSignature(
-    "swap_nft_to_fungible(asset,uint64)void"
+    "swap_nft_to_fungible(asset,uint64)uint64"
 )
 @Subroutine(TealType.uint64)
 def swap_nft_to_fungible():

@@ -24,6 +24,15 @@
       "desc": "sets the swap price. (signed by oracle)",
       "args": [{ "name": "swap_price", "type": "uint64" }],
       "returns": { "type": "uint64" }
+    },
+    {
+      "name": "swap_nft_to_fungible",
+      "desc": "swap NFT to Climatecoin",
+      "args": [
+        { "name": "nft_id", "type": "asset" },
+        { "name": "swap_price", "type": "uint64" }
+      ],
+      "returns": { "type": "uint64" }
     }
   ]
 }

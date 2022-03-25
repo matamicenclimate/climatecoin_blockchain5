@@ -1,3 +1,4 @@
+from audioop import add
 from email.headerregistry import Address
 from algosdk import *
 from algosdk.v2client import algod
@@ -86,8 +87,20 @@ def demo():
     # Swap them
     atc = AtomicTransactionComposer()
     oracle = AccountTransactionSigner(oracle_pk)
+    nft_value = 100 # this comes from some metadata in the arc-69
+    atc.add_transaction(
+        TransactionWithSigner(
+            txn=AssetTransferTxn(addr, sp, get_escrow_from_app(app_id), 1, nft_id, get_escrow_from_app(app_id)), signer=signer
+        )
+    )
+    # esto lo manda el backend al frontend
+    atc.add_method_call(app_id, get_method(iface, "set_swap_price"), oracle_addr, sp, oracle, [nft_value])
+    atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, signer, [nft_id, nft_value])
+    
+    group = atc.submit(client)
+    print(group)
+    result = wait_for_confirmation(client, group)
 
-    atc.add_method_call(app_id, get_method(iface, "set_swap_price"), oracle_addr, sp, oracle, [100])
 
 
 def get_app_call(addr, sp, app_id, args):
