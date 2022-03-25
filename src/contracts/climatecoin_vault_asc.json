@@ -6,6 +6,12 @@
       "desc": "mints climatecoins",
       "args": [],
       "returns": { "type": "uint64" }
+    },
+    {
+      "name": "set_minter_address",
+      "desc": "sets the nft minter address",
+      "args": [{ "name": "minter_address", "type": "address" }],
+      "returns": { "type": "address" }
     }
   ]
 }

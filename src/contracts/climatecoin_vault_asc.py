@@ -55,25 +55,24 @@ def mint_climatecoin():
             TxnField.config_asset_reserve: Global.current_application_address(),
             TxnField.config_asset_freeze: Global.current_application_address(),
             TxnField.config_asset_total: Int(150_000_000),
-            # TxnField.config_asset_total: Int(0),
             TxnField.config_asset_decimals: Int(0),
             TxnField.fee: Int(0),
         }),
         # Submit the transaction we just built
         InnerTxnBuilder.Submit(),   
-        # TODO: store in global the id of the minted asa
         App.globalPut(CLIMATECOIN_ASA_ID, InnerTxn.created_asset_id()),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
         Int(1)
     )
 
 set_minter_address_selector = MethodSignature(
-    "set_minter_address(account)void"
+    "set_minter_address(address)address"
 )
 @Subroutine(TealType.uint64)
 def set_minter_address():
     return Seq(
         App.globalPut(NFT_MINTER_ADDRESS, Txn.application_args[1]),
+        Log(Concat(return_prefix, Txn.application_args[1])),
         Int(1)
     )
 

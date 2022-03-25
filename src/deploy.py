@@ -63,6 +63,7 @@ def demo():
     sp.fee = sp.min_fee * 3
 
     atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, signer)
+    atc.add_method_call(app_id, get_method(iface, "set_minter_address"), addr, sp, signer, [addr])
     
     result = atc.execute(client, 4)
     for res in result.abi_results:
@@ -71,9 +72,9 @@ def demo():
 
 def get_app_call(addr, sp, app_id, args):
     return ApplicationCallTxn(
-            addr, sp, app_id, 
-            OnComplete.NoOpOC, 
-            app_args=args,
+        addr, sp, app_id, 
+        OnComplete.NoOpOC, 
+        app_args=args,
     )
 
 
