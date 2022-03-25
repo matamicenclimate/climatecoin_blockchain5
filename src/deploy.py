@@ -4,10 +4,11 @@ from algosdk.v2client import algod
 from algosdk.v2client.models import DryrunSource, DryrunRequest
 from algosdk.future.transaction import *
 from algosdk.atomic_transaction_composer import *
+from algosdk.abi import *
 
 from sandbox import get_accounts
 
-from climatecoin_vault_asc import mint_climatecoin_selector, contract, contract_clear
+from contracts.climatecoin_vault_asc import mint_climatecoin_selector, contract, contract_clear
 from utils import compile_program, wait_for_confirmation
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -16,6 +17,18 @@ url = "http://localhost:4001"
 deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
 
 client = algod.AlgodClient(token, url)
+
+# Read in ABI description
+with open("src/contracts/climatecoin_vault_asc.json") as f:
+    iface = Interface.from_json(f.read())
+
+
+def get_method(i: Interface, name: str) -> Method:
+    for m in i.methods:
+        if m.name == name:
+            return m
+    raise Exception("No method with the name {}".format(name))
+
 
 def demo():
     # Create acct
@@ -34,7 +47,9 @@ def demo():
     atc = AtomicTransactionComposer()
     signer = AccountTransactionSigner(pk)
     sp = client.suggested_params()
-    app_call_txn = get_app_call(addr, sp, app_id, [mint_climatecoin_selector.methodName, "Climatecoin", "CC", (150_000_000).to_bytes(8,'big')])
+    print(mint_climatecoin_selector.methodName)
+
+    app_call_txn = get_app_call(addr, sp, app_id, [get_method(iface, "mint_climatecoin"), "Climatecoin", "CC"])
     tws = TransactionWithSigner(app_call_txn, signer)
     atc.add_transaction(tws)
     
@@ -61,11 +76,11 @@ def create_app(addr, pk):
     # Read in clear teal source && compile 
     clear_program = compile_program(client, contract_clear())
 
-    # We dont need no stinkin storage
-    schema = StateSchema(2, 1)
+    global_schema = StateSchema(2, 1)
+    local_schema = StateSchema(0, 0)
 
     # Create the transaction
-    create_txn = ApplicationCreateTxn(addr, sp, 0, approval_program, clear_program, schema, schema)
+    create_txn = ApplicationCreateTxn(addr, sp, 0, approval_program, clear_program, global_schema, local_schema)
 
     # Sign it
     signed_txn = create_txn.sign(pk)

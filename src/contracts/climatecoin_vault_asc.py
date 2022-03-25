@@ -29,20 +29,20 @@ def swap_nft_to_fungible():
     ])
 
     nft_value = oracle_txn.application_args[1]
-    return Seq([
+    return Seq(
         valid_swap,
         ensure_opted_in(Txn.application_args[1]),
         axfer(Txn.sender(), App.globalGet(CLIMATECOIN_ASA_ID), nft_value),
         Int(1)
-    ])
+    )
 
 mint_climatecoin_selector = MethodSignature(
-    "mint_climatecoin(string,string,uint64)void"
+    "mint_climatecoin(string,string)void"
 )
 @Subroutine(TealType.uint64)
 def mint_climatecoin():
-    return Seq([
-        Assert(App.globalGet(CLIMATECOIN_ASA_ID) == Int(0)),
+    mint_welformed = Txn.application_args.length() == Int(4)
+    return Seq(
         InnerTxnBuilder.Begin(),    
         # This method accepts a dictionary of TxnField to value so all fields may be set 
         InnerTxnBuilder.SetFields({ 
@@ -53,36 +53,34 @@ def mint_climatecoin():
             TxnField.config_asset_clawback: Global.current_application_address(),
             TxnField.config_asset_reserve: Global.current_application_address(),
             TxnField.config_asset_freeze: Global.current_application_address(),
-            TxnField.config_asset_total: Btoi(Txn.application_args[3]),
+            TxnField.config_asset_total: Int(150_000_000),
+            # TxnField.config_asset_total: Int(0),
             TxnField.config_asset_decimals: Int(0),
         }),
         # Submit the transaction we just built
         InnerTxnBuilder.Submit(),   
         # TODO: store in global the id of the minted asa
-        App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
+        App.globalPut(CLIMATECOIN_ASA_ID, InnerTxn.created_asset_id()),
         Int(1)
-    ]) 
+    )
 
 set_minter_address_selector = MethodSignature(
     "set_minter_address(account)void"
 )
+@Subroutine(TealType.uint64)
 def set_minter_address():
-    is_owner = Seq([
-        Assert(Txn.sender() == Global.creator_address())
-    ])
-    return Seq([
-        is_owner,
+    return Seq(
         App.globalPut(NFT_MINTER_ADDRESS, Txn.application_args[1]),
         Int(1)
-    ])
+    )
 
 def contract():
     def initialize_vault():
-        return Seq([
+        return Seq(
             # App.globalPut(NFT_MINTER_ADDRESS, Itob(Int(0))),
             App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
             Int(1)
-        ])
+        )
 
     from_creator = Txn.sender() == Global.creator_address()
 
@@ -96,8 +94,8 @@ def contract():
         #  handle app creation
         [Txn.application_id() == Int(0), Return(initialize_vault())],
         #  allow all to opt-in and close-out
-        [Txn.on_completion() == OnComplete.OptIn, Approve()],
-        [Txn.on_completion() == OnComplete.CloseOut, Approve()],
+        [Txn.on_completion() == OnComplete.OptIn, Reject()],
+        [Txn.on_completion() == OnComplete.CloseOut, Reject()],
         #  allow creator to update and delete app
         [Txn.on_completion() == OnComplete.DeleteApplication, Return(Txn.sender() == Global.creator_address())],
         [Txn.on_completion() == OnComplete.UpdateApplication, Return(Txn.sender() == Global.creator_address())],

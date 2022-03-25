@@ -1,0 +1,14 @@
+{
+  "name": "climatecoin_vault_arc4",
+  "methods": [
+    {
+      "name": "mint_climatecoin",
+      "desc": "mints climatecoins",
+      "args": [
+        { "name": "asa_name", "type": "string" },
+        { "name": "asa_unit_name", "type": "string" }
+      ],
+      "returns": { "type": "void" }
+    }
+  ]
+}
