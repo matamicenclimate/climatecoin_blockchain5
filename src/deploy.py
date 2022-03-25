@@ -62,7 +62,7 @@ def demo():
 
     sp.fee = sp.min_fee * 3
 
-    atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, signer, ["Climatecoin", "CC"])
+    atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, signer)
     
     result = atc.execute(client, 4)
     for res in result.abi_results:

@@ -7,6 +7,7 @@ from pyteal_utils import aoptin, axfer, ensure_opted_in
 
 TEAL_VERSION = 6
 
+return_prefix = Bytes("base16", "0x151f7c75")  # Literally hash('return')[:4]
 # Global Vars
 NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
 CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
@@ -37,7 +38,7 @@ def swap_nft_to_fungible():
     )
 
 mint_climatecoin_selector = MethodSignature(
-    "mint_climatecoin(string,string)void"
+    "mint_climatecoin()uint64"
 )
 @Subroutine(TealType.uint64)
 def mint_climatecoin():
@@ -47,8 +48,8 @@ def mint_climatecoin():
         # This method accepts a dictionary of TxnField to value so all fields may be set 
         InnerTxnBuilder.SetFields({ 
             TxnField.type_enum: TxnType.AssetConfig,
-            TxnField.config_asset_name: Txn.application_args[1],
-            TxnField.config_asset_unit_name: Txn.application_args[2],
+            TxnField.config_asset_name: Bytes("Climatecoin"),
+            TxnField.config_asset_unit_name: Bytes("CC"),
             TxnField.config_asset_manager: Global.current_application_address(),
             TxnField.config_asset_clawback: Global.current_application_address(),
             TxnField.config_asset_reserve: Global.current_application_address(),
@@ -62,6 +63,7 @@ def mint_climatecoin():
         InnerTxnBuilder.Submit(),   
         # TODO: store in global the id of the minted asa
         App.globalPut(CLIMATECOIN_ASA_ID, InnerTxn.created_asset_id()),
+        Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
         Int(1)
     )
 
