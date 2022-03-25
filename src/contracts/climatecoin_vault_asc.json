@@ -28,10 +28,7 @@
     {
       "name": "swap_nft_to_fungible",
       "desc": "swap NFT to Climatecoin",
-      "args": [
-        { "name": "nft_id", "type": "asset" },
-        { "name": "swap_price", "type": "uint64" }
-      ],
+      "args": [{ "name": "nft_id", "type": "asset" }],
       "returns": { "type": "uint64" }
     },
     {
@@ -39,7 +36,8 @@
       "desc": "Create an nft with appropriate parameters, return its id",
       "args": [
         { "name": "metadata_hash", "type": "string" },
-        { "name": "nft_parameters", "type": "string" }
+        { "name": "nft_parameters", "type": "string" },
+        { "name": "total_supply", "type": "uint64" }
       ],
       "returns": { "name": "asset-id", "type": "uint64" }
     },
@@ -49,7 +47,8 @@
       "args": [
         { "name": "royalty_asset", "type": "asset" },
         { "name": "from", "type": "account" },
-        { "name": "to", "type": "account" }
+        { "name": "to", "type": "account" },
+        { "name": "amount", "type": "uint64" }
       ],
       "returns": { "type": "void" }
     }

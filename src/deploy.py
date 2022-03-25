@@ -1,5 +1,6 @@
 from audioop import add
 from email.headerregistry import Address
+import os
 from algosdk import *
 from algosdk.v2client import algod
 from algosdk.v2client.models import DryrunSource, DryrunRequest
@@ -46,6 +47,7 @@ def demo():
     # pk = mnemonic.to_private_key(deployer_mnemonic)
     # addr = account.address_from_private_key(pk)
     addr, pk = get_accounts()[0]
+    addr_signer = AccountTransactionSigner(pk)
     print("Using {}".format(addr))
 
     # this will be our backend oracle, but we mock it for now
@@ -59,11 +61,10 @@ def demo():
     app_addr = logic.get_application_address(app_id)
     print("Application Address: {}".format(app_addr))
 
+    sp = client.suggested_params()
     #
     # Setup the smart contract
     atc = AtomicTransactionComposer()
-    addr_signer = AccountTransactionSigner(pk)
-    sp = client.suggested_params()
     
     atc.add_transaction(
         TransactionWithSigner(
@@ -97,29 +98,24 @@ def demo():
     # Mint  some nfts
     sp = client.suggested_params()
     atc = AtomicTransactionComposer()
-    atc.add_transaction(
-        TransactionWithSigner(
-            txn=PaymentTxn(addr, sp, app_addr, int(1e8)), signer=addr_signer
-        )
-    )
     # Dummy metadata
     metadata = {
         "type": "from_date",
         "from": "1/1/2022"
     }
     metadata_json = json.dumps(metadata)
-    metadata_hash = hashlib.sha256(metadata_json.encode()).digest()
-    hash_as_str=base64.b32encode(metadata_hash).decode('utf-8')
-    print(hash_as_str)
-    print(len(hash_as_str))
+    metadata_hash = hashlib.sha256(metadata_json.encode()).digest()[:32]
+    hash_as_str=base64.b64encode(metadata_hash).decode('utf-8')
 
-    atc.add_method_call(app_id, get_method(iface, "create_nft"), addr, sp, addr_signer, [hash_as_str, metadata_json])
+    nft_total_supply = 1000
+
+    atc.add_method_call(app_id, get_method(iface, "create_nft"), addr, sp, addr_signer, [hash_as_str, metadata_json, nft_total_supply])
     results = atc.execute(client, 2)
 
     created_nft_id = results.abi_results[0].return_value
     print("Created nft {}".format(created_nft_id))
 
-    print("Calling move method")
+    print("Optin to method")
     sp = client.suggested_params()
     atc = AtomicTransactionComposer()
     # Optin to the created NFT
@@ -128,38 +124,50 @@ def demo():
             txn=AssetTransferTxn(addr, sp, addr, 0, created_nft_id), signer=addr_signer
         )
     )
+    print("Calling move method")
     atc.add_method_call(
         app_id,
         get_method(iface, "move"),
         addr,
         sp,
         addr_signer,
-        [created_nft_id, get_escrow_from_app(app_id), addr],
+        [created_nft_id, get_escrow_from_app(app_id), addr, 500],
     )
     atc.execute(client, 2)
-
+    print_asset_holding(client, addr, created_nft_id)
 
     #
     # Swap them
     atc = AtomicTransactionComposer()
-    oracle = AccountTransactionSigner(oracle_pk)
-    nft_value = 1000 # this comes from some metadata in the arc-69
     print("Swap the asset")
-    atc.add_transaction(
-        TransactionWithSigner(
-            txn=AssetTransferTxn(addr, sp, get_escrow_from_app(app_id), 1, created_nft_id, get_escrow_from_app(app_id)), signer=addr_signer
-        )
-    )
-    # esto lo manda el backend al frontend
-    atc.add_method_call(app_id, get_method(iface, "set_swap_price"), oracle_addr, sp, oracle, [nft_value])
-    atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, addr_signer, [created_nft_id, nft_value], foreign_assets=[climatecoin_asa_id])
-    
-    group = atc.submit(client)
-    print(group)
-    # result = wait_for_confirmation(client, group)
-
+    # add random nonce in note so we can send identicall txns
+    atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, addr_signer, [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
+    atc.execute(client, 4)
     print_asset_holding(client, addr, climatecoin_asa_id)
 
+
+    #
+    # Do it again
+    print("calling move method")
+    atc = AtomicTransactionComposer()
+    atc.add_method_call(
+        app_id,
+        get_method(iface, "move"),
+        addr,
+        sp,
+        addr_signer,
+        [created_nft_id, get_escrow_from_app(app_id), addr, 400],
+    )
+    atc.execute(client, 4)
+    print_asset_holding(client, addr, created_nft_id)
+
+    print("calling swap method")
+    atc = AtomicTransactionComposer()
+    # add random nonce in note so we can send identicall txns
+    atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, addr_signer, [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
+    atc.execute(client, 4)
+
+    print_asset_holding(client, addr, climatecoin_asa_id)
 
 def get_app_call(addr, sp, app_id, args):
     return ApplicationCallTxn(

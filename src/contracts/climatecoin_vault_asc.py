@@ -4,6 +4,7 @@
 from pyteal import *
 
 from pyteal_utils import aoptin, axfer, ensure_opted_in
+from src.pyteal_utils import clawback_asset
 
 TEAL_VERSION = 6
 
@@ -16,7 +17,7 @@ CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 
 
 create_selector = MethodSignature(
-    "create_nft(string,string)uint64"
+    "create_nft(string,string,uint64)uint64"
 )
 @Subroutine(TealType.uint64)
 def create_nft():
@@ -27,13 +28,16 @@ def create_nft():
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
                 TxnField.config_asset_unit_name: Bytes("CO2"),
-                TxnField.config_asset_total: Int(1),
+                # TxnField.config_asset_total: Int(1),
+                TxnField.config_asset_total: Btoi(Txn.application_args[3]),
+                TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
                 TxnField.config_asset_reserve: Global.current_application_address(),
+                # TODO: we shouldnt use freeze and clawback
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 # TODO: why cant we move it if tits frozen?
-                TxnField.config_asset_default_frozen: Int(0),
+                TxnField.config_asset_default_frozen: Int(1),
                 # TxnField.config_asset_metadata_hash: Txn.application_args[1],
                 # TxnField.note: Txn.application_args[2]
             }
@@ -44,36 +48,32 @@ def create_nft():
     )
 
 swap_nft_to_fungible_selector = MethodSignature(
-    "swap_nft_to_fungible(asset,uint64)uint64"
+    "swap_nft_to_fungible(asset)uint64"
 )
 @Subroutine(TealType.uint64)
 def swap_nft_to_fungible():
-    transfer_txn = Gtxn[0]
-    oracle_txn = Gtxn[1]
-    swap_txn = Gtxn[Txn.group_index()]
-
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
 
     valid_swap = Seq([
-        Assert(Global.group_size() == Int(3)),
+        Assert(Global.group_size() == Int(1)),
         #  this application serves as the escrow for the fee
-        Assert(transfer_txn.type_enum() == TxnType.AssetTransfer),
         # Assert(transfer_txn.xfer_asset() == Btoi(Txn.application_args[1])),
         # Assert(payment_txn.type_enum() == TxnType.Payment),
         # Assert(payment_txn.amount() == App.globalGet(GLOBAL_SERVICE_FEE)),
     ])
 
-    nft_value = Btoi(oracle_txn.application_args[1])
     return Seq(
         valid_swap,
         ensure_opted_in(asset_id),
+        # clawsback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
+        clawback_asset(asset_id, Txn.sender()),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: App.globalGet(CLIMATECOIN_ASA_ID),
-                TxnField.asset_amount: nft_value,
-                TxnField.asset_receiver: swap_txn.sender(),
+                TxnField.asset_amount: InnerTxn.asset_amount(),
+                TxnField.asset_receiver: Txn.sender(),
             }
         ),
         InnerTxnBuilder.Submit(),
@@ -96,7 +96,7 @@ def mint_climatecoin():
             TxnField.config_asset_clawback: Global.current_application_address(),
             TxnField.config_asset_reserve: Global.current_application_address(),
             TxnField.config_asset_freeze: Global.current_application_address(),
-            TxnField.config_asset_total: Int(150_000_000),
+            TxnField.config_asset_total: Int(150_000_000_000),
             TxnField.config_asset_decimals: Int(0),
             TxnField.fee: Int(0),
         }),
@@ -141,24 +141,25 @@ def set_oracle_address():
     )
 
 move_selector = MethodSignature(
-    "move(asset,account,account)void"
+    "move(asset,account,account,uint64)void"
 )
 @Subroutine(TealType.uint64)
 def move():
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
     from_acct = Txn.accounts[Btoi(Txn.application_args[2])]
     to_acct = Txn.accounts[Btoi(Txn.application_args[3])]
-    return Seq(move_asset(asset_id, from_acct, to_acct), Int(1))
+    amount = Btoi(Txn.application_args[4])
+    return Seq(move_asset(asset_id, from_acct, to_acct, amount), Int(1))
 
 @Subroutine(TealType.none)
-def move_asset(asset_id, owner, buyer):
+def move_asset(asset_id, owner, buyer, amount):
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_id,
-                TxnField.asset_amount: Int(1),
+                TxnField.asset_amount: amount,
                 TxnField.asset_sender: owner,
                 TxnField.asset_receiver: buyer,
             }

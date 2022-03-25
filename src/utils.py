@@ -33,6 +33,6 @@ def print_asset_holding(algodclient, account, assetid):
         scrutinized_asset = account_info["assets"][idx]
         idx = idx + 1
         if scrutinized_asset["asset-id"] == assetid:
-            print("Asset ID: {}".format(scrutinized_asset["asset-id"]))
+            print("Asset ID: {} from {}".format(scrutinized_asset["asset-id"], account))
             print(json.dumps(scrutinized_asset, indent=4))
             break

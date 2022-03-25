@@ -1,6 +1,30 @@
 from pyteal import *
 
 @Subroutine(TealType.none)
+def clawback_asset(asset_id, owner):
+    bal = AssetHolding.balance(owner, asset_id)
+
+    return Seq(
+        bal,
+        If(
+            bal.hasValue(),
+            Seq(
+                InnerTxnBuilder.Begin(),
+                InnerTxnBuilder.SetFields(
+                    {
+                        TxnField.type_enum: TxnType.AssetTransfer,
+                        TxnField.xfer_asset: asset_id,
+                        TxnField.asset_amount: bal.value(),
+                        TxnField.asset_sender: owner,
+                        TxnField.asset_receiver: Global.current_application_address(),
+                    }
+                ),
+                InnerTxnBuilder.Submit(),
+            )
+        )
+    )
+
+@Subroutine(TealType.none)
 def aoptin(reciever, aid):
     return Seq(
         InnerTxnBuilder.Begin(),
