@@ -184,7 +184,7 @@ def contract():
         [Txn.application_args[0] == set_swap_price_selector, set_swap_price()],
     )
 
-    program = Cond(
+    return Cond(
         #  handle app creation
         [Txn.application_id() == Int(0), Return(initialize_vault())],
         #  allow all to opt-in and close-out
@@ -196,20 +196,18 @@ def contract():
         [Txn.on_completion() == OnComplete.NoOp, Return(handle_noop)]
     )
 
-    return compileTeal(program, Mode.Application, version=TEAL_VERSION)
 
-def contract_clear():
-    return compileTeal(Approve(), Mode.Application, version=TEAL_VERSION)
+def clear():
+    return Approve()
 
-if __name__ == '__main__':
-    filename = 'climatecoin_vault.teal'
-    with open(filename, 'w') as f:
-        compiled = contract()
-        f.write(compiled)
-        print(f'compiled {filename}')
 
-    filename = 'climatecoin_vault_clear.teal'
-    with open(filename, 'w') as f:
-        compiled = contract_clear()
-        f.write(compiled)
-        print(f'compiled {filename}')
+def get_approval():
+    return compileTeal(contract(), mode=Mode.Application, version=6)
+
+
+def get_clear():
+    return compileTeal(clear(), mode=Mode.Application, version=6)
+
+
+if __name__ == "__main__":
+    print(get_approval())

@@ -11,7 +11,7 @@ from algosdk import util
 
 from sandbox import get_accounts
 
-from contracts.climatecoin_vault_asc import mint_climatecoin_selector, contract, contract_clear
+from src.contracts.climatecoin_vault_asc import get_approval, get_clear
 from src.utils import print_asset_holding
 from utils import compile_program, wait_for_confirmation
 
@@ -60,7 +60,6 @@ def demo():
     atc = AtomicTransactionComposer()
     addr_signer = AccountTransactionSigner(pk)
     sp = client.suggested_params()
-    print(mint_climatecoin_selector.methodName)
     
     atc.add_transaction(
         TransactionWithSigner(
@@ -160,10 +159,10 @@ def create_app(addr, pk):
     sp = client.suggested_params()
 
     # Read in approval teal source && compile
-    approval_program = compile_program(client, contract())
+    approval_program = compile_program(client, get_approval())
     
     # Read in clear teal source && compile 
-    clear_program = compile_program(client, contract_clear())
+    clear_program = compile_program(client, get_clear())
 
     global_schema = StateSchema(2, 2)
     local_schema = StateSchema(0, 0)
