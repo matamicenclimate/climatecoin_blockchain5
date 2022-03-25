@@ -46,6 +46,7 @@ def axfer(reciever, aid, amt):
                 TxnField.xfer_asset: aid,
                 TxnField.asset_amount: amt,
                 TxnField.asset_receiver: reciever,
+                TxnField.sender: Global.current_application_address()
             }
         ),
         InnerTxnBuilder.Submit(),

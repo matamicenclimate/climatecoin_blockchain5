@@ -12,6 +12,7 @@ from algosdk import util
 from sandbox import get_accounts
 
 from contracts.climatecoin_vault_asc import mint_climatecoin_selector, contract, contract_clear
+from src.utils import print_asset_holding
 from utils import compile_program, wait_for_confirmation
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -57,50 +58,93 @@ def demo():
     #
     # Setup the smart contract
     atc = AtomicTransactionComposer()
-    signer = AccountTransactionSigner(pk)
+    addr_signer = AccountTransactionSigner(pk)
     sp = client.suggested_params()
     print(mint_climatecoin_selector.methodName)
     
     atc.add_transaction(
         TransactionWithSigner(
-            txn=PaymentTxn(addr, sp, get_escrow_from_app(app_id), util.algos_to_microalgos(1), None), signer=signer
+            txn=PaymentTxn(addr, sp, get_escrow_from_app(app_id), util.algos_to_microalgos(1), None), signer=addr_signer
         )
     )
 
     sp.fee = sp.min_fee * 3
 
-    atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, signer)
-    atc.add_method_call(app_id, get_method(iface, "set_minter_address"), addr, sp, signer, [addr])
-    atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, signer, [oracle_addr])
+    atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, addr_signer)
+    atc.add_method_call(app_id, get_method(iface, "set_minter_address"), addr, sp, addr_signer, [addr])
+    atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
     
     result = atc.execute(client, 4)
     for res in result.abi_results:
         print(res.return_value)
+    climatecoin_asa_id = result.abi_results[0].return_value
+
+    #
+    # Optin to climatecoin
+    print("manager opted into climatecoin")
+    atc = AtomicTransactionComposer()
+    atc.add_transaction(
+        TransactionWithSigner(
+            txn=AssetTransferTxn(addr, sp, addr, 0, climatecoin_asa_id), signer=addr_signer
+        )
+    )
+    atc.execute(client, 2)
 
     #
     # Mint  some nfts
+    sp = client.suggested_params()
+    atc = AtomicTransactionComposer()
+    atc.add_transaction(
+        TransactionWithSigner(
+            txn=PaymentTxn(addr, sp, app_addr, int(1e8)), signer=addr_signer
+        )
+    )
+    atc.add_method_call(app_id, get_method(iface, "create_nft"), addr, sp, addr_signer)
+    results = atc.execute(client, 2)
 
-    nft_id = create_asset(addr, pk)
-    print("Created CO2 nft {}".format(nft_id))
+    created_nft_id = results.abi_results[0].return_value
+    print("Created nft {}".format(created_nft_id))
+
+    print("Calling move method")
+    sp = client.suggested_params()
+    atc = AtomicTransactionComposer()
+    # Optin to the created NFT
+    atc.add_transaction(
+        TransactionWithSigner(
+            txn=AssetTransferTxn(addr, sp, addr, 0, created_nft_id), signer=addr_signer
+        )
+    )
+    atc.add_method_call(
+        app_id,
+        get_method(iface, "move"),
+        addr,
+        sp,
+        addr_signer,
+        [created_nft_id, get_escrow_from_app(app_id), addr],
+    )
+    atc.execute(client, 2)
+
 
     #
     # Swap them
     atc = AtomicTransactionComposer()
     oracle = AccountTransactionSigner(oracle_pk)
-    nft_value = 100 # this comes from some metadata in the arc-69
+    nft_value = 1000 # this comes from some metadata in the arc-69
+    print("Swap the asset")
     atc.add_transaction(
         TransactionWithSigner(
-            txn=AssetTransferTxn(addr, sp, get_escrow_from_app(app_id), 1, nft_id, get_escrow_from_app(app_id)), signer=signer
+            txn=AssetTransferTxn(addr, sp, get_escrow_from_app(app_id), 1, created_nft_id, get_escrow_from_app(app_id)), signer=addr_signer
         )
     )
     # esto lo manda el backend al frontend
     atc.add_method_call(app_id, get_method(iface, "set_swap_price"), oracle_addr, sp, oracle, [nft_value])
-    atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, signer, [nft_id, nft_value])
+    atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, addr_signer, [created_nft_id, nft_value], foreign_assets=[climatecoin_asa_id])
     
     group = atc.submit(client)
     print(group)
-    result = wait_for_confirmation(client, group)
+    # result = wait_for_confirmation(client, group)
 
+    print_asset_holding(client, addr, climatecoin_asa_id)
 
 
 def get_app_call(addr, sp, app_id, args):
@@ -139,35 +183,6 @@ def create_app(addr, pk):
     return result['application-index']
 
 
-def create_asset(addr, pk):
-    # Get suggested params from network 
-    sp = client.suggested_params()
-
-    # Create the transaction
-    asset_config_txn = AssetConfigTxn(
-        addr,
-        sp,
-        total=1,
-        manager=addr,
-        reserve=addr,
-        freeze=addr,
-        clawback=addr,
-        unit_name="CO2",
-        asset_name="CO2NFT@arc-69", 
-        url="daiwal.com",
-        default_frozen=0
-    )
-    
-    # Sign it
-    signed_txn = asset_config_txn.sign(pk)
-
-    # Ship it
-    txid = client.send_transaction(signed_txn)
-    
-    # Wait for the result so we can return the app id
-    result = wait_for_confirmation(client, txid)
-
-    return result["asset-index"]
 
 
 if __name__ == "__main__":

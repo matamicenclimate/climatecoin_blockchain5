@@ -33,6 +33,22 @@
         { "name": "swap_price", "type": "uint64" }
       ],
       "returns": { "type": "uint64" }
+    },
+    {
+      "name": "create_nft",
+      "desc": "Create an nft with appropriate parameters, return its id",
+      "args": [],
+      "returns": { "name": "asset-id", "type": "uint64" }
+    },
+    {
+      "name": "move",
+      "desc": "Moves the asset passed from one account to another",
+      "args": [
+        { "name": "royalty_asset", "type": "asset" },
+        { "name": "from", "type": "account" },
+        { "name": "to", "type": "account" }
+      ],
+      "returns": { "type": "void" }
     }
   ]
 }
