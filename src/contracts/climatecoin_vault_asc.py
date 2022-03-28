@@ -81,7 +81,7 @@ def swap_nft_to_fungible():
     return Seq(
         valid_swap,
         ensure_opted_in(asset_id),
-        # clawsback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
+        # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
         clawback_asset(asset_id, Txn.sender()),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -134,6 +134,18 @@ def set_minter_address():
         Int(1)
     )
 
+
+set_fee_selector = MethodSignature(
+    "set_fee_selector(uint64)uint64"
+)
+@Subroutine(TealType.uint64)
+def set_fee():
+    return Seq(
+        App.globalPut(MINT_FEE, Txn.application_args[1]),
+        Log(Concat(return_prefix, Txn.application_args[1])),
+        Int(1)
+    )
+
 move_selector = MethodSignature(
     "move(asset,account,account,uint64)void"
 )
@@ -164,8 +176,7 @@ def move_asset(asset_id, owner, buyer, amount):
 def contract():
     def initialize_vault():
         return Seq(
-            # App.globalPut(NFT_MINTER_ADDRESS, Itob(Int(0))),
-            App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),            
+            App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
             App.globalPut(MINT_FEE, Int(5)),            
             Int(1)
         )
@@ -177,6 +188,7 @@ def contract():
         [And(Txn.application_args[0] == set_minter_address_selector, from_creator), set_minter_address()],
         [And(Txn.application_args[0] == move_selector, from_creator), move()],
         [And(Txn.application_args[0] == create_selector, from_creator), create_nft()],
+        [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
         [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
     )
 

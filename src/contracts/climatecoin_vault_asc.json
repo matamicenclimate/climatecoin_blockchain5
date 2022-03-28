@@ -13,6 +13,12 @@
       "args": [{ "name": "minter_address", "type": "address" }],
       "returns": { "type": "address" }
     },
+     {
+      "name": "set_fee",
+      "desc": "sets the nft minting fee",
+      "args": [{ "name": "mint_fee", "type": "uint64" }],
+      "returns": { "type": "uint64" }
+    },
     {
       "name": "swap_nft_to_fungible",
       "desc": "swap NFT to Climatecoin",

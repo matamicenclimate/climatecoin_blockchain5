@@ -38,6 +38,18 @@ def aoptin(reciever, aid):
         InnerTxnBuilder.Submit(),
     )
 
+@Subroutine(TealType.uint64)
+def div_ceil(a, b) -> Expr:
+    """Returns the result of division rounded up to the next integer
+    Args:
+        a: uint64 numerator for the operation
+        b: uint64 denominator for the operation
+    Returns:
+        uint64 result of a truncated division + 1
+    """
+    q = a / b
+    return If(a % b > Int(0), q + Int(1), q)
+
 @Subroutine(TealType.none)
 def ensure_opted_in(asset_id):
     bal = AssetHolding.balance(Global.current_application_address(), asset_id)
