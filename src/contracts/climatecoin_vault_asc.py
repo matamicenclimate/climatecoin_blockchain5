@@ -3,8 +3,7 @@
 
 from pyteal import *
 
-from pyteal_utils import ensure_opted_in
-from src.pyteal_utils import clawback_asset
+from src.pyteal_utils import ensure_opted_in, clawback_asset
 
 TEAL_VERSION = 6
 

@@ -25,10 +25,9 @@ token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 url = "https://node.testnet.algoexplorerapi.io"
 # indexer_url = "http://localhost:8980"
 indexer_url = "https://algoindexer.testnet.algoexplorerapi.io"
-backend_deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
-test_joel_mnemonic_1="abandon list flash zero motor west pattern jelly shove then pass end runway city forward wrist oval prefer depth divide high address priority about naive"
-test_joel_mnemonic_2="buffalo eye system gadget swap banner company rebuild phone seek diet calm fashion hen opinion globe wire lazy address thunder memory tuna now about grocery"
-test_joel_mnemonic_3="light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
+deployer_mnemonic="light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
+random_user="know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
+random_user_ONLY_ONCE="laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
 
 client = algod.AlgodClient(token, url)
 indexer_client = indexer.IndexerClient(
@@ -51,14 +50,21 @@ def get_escrow_from_app(app_id):
 
 def demo():
     # Create acct
-    pk = mnemonic.to_private_key(test_joel_mnemonic_3)
-    addr = account.address_from_private_key(pk)
+    manager_pk = mnemonic.to_private_key(deployer_mnemonic)
+    manager_addr = account.address_from_private_key(manager_pk)
     # addr, pk = get_accounts()[0]
-    addr_signer = AccountTransactionSigner(pk)
-    print("Using {}".format(addr))
+    manager_signer = AccountTransactionSigner(manager_pk)
+    print("Using {}".format(manager_addr))
+
+    # Create random user acct
+    user_pk = mnemonic.to_private_key(random_user)
+    user_addr = account.address_from_private_key(user_pk)
+    # addr, pk = get_accounts()[0]
+    user_signer = AccountTransactionSigner(user_pk)
+    print("Using {}".format(user_addr))
 
     # Create app
-    app_id = create_app(addr, pk)
+    app_id = create_app(manager_addr, manager_pk)
     print("Created App with id: {}".format(app_id))
 
     app_addr = logic.get_application_address(app_id)
@@ -77,14 +83,14 @@ def demo():
         sp.fee = sp.min_fee * 3
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(addr, sp, get_escrow_from_app(app_id), util.algos_to_microalgos(1), None), signer=addr_signer
+                txn=PaymentTxn(manager_addr, sp, get_escrow_from_app(app_id), util.algos_to_microalgos(1), None), signer=manager_signer
             )
         )
 
         sp.fee = sp.min_fee * 3
 
-        atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), addr, sp, addr_signer, [])
-        atc.add_method_call(app_id, get_method(iface, "set_minter_address"), addr, sp, addr_signer, [addr])
+        atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
+        atc.add_method_call(app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer, [manager_addr])
         # atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
         
         result = atc.execute(client, 4)
@@ -94,11 +100,11 @@ def demo():
 
         #
         # Optin to climatecoin
-        print("manager opted into climatecoin")
+        print("user opted into climatecoin")
         atc = AtomicTransactionComposer()
         atc.add_transaction(
             TransactionWithSigner(
-                txn=AssetTransferTxn(addr, sp, addr, 0, climatecoin_asa_id), signer=addr_signer
+                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, climatecoin_asa_id), signer=user_signer
             )
         )
         atc.execute(client, 2)
@@ -111,7 +117,7 @@ def demo():
         metadata_json , encoded = get_dummy_metadata()
         nft_total_supply = 1000
 
-        atc.add_method_call(app_id, get_method(iface, "create_nft"), addr, sp, addr_signer, [nft_total_supply, encoded], note = metadata_json.encode())
+        atc.add_method_call(app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer, [nft_total_supply, encoded], note = metadata_json.encode())
         results = atc.execute(client, 2)
 
         created_nft_id = results.abi_results[0].return_value
@@ -123,29 +129,29 @@ def demo():
         # Optin to the created NFT
         atc.add_transaction(
             TransactionWithSigner(
-                txn=AssetTransferTxn(addr, sp, addr, 0, created_nft_id), signer=addr_signer
+                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, created_nft_id), signer=user_signer
             )
         )
         print("Calling move method")
         atc.add_method_call(
             app_id,
             get_method(iface, "move"),
-            addr,
+            manager_addr,
             sp,
-            addr_signer,
-            [created_nft_id, get_escrow_from_app(app_id), addr, 500],
+            manager_signer,
+            [created_nft_id, get_escrow_from_app(app_id), user_addr, 500],
         )
         atc.execute(client, 2)
-        print_asset_holding(indexer_client, addr, created_nft_id)
+        print_asset_holding(indexer_client, user_addr, created_nft_id)
 
         #
         # Swap them
         atc = AtomicTransactionComposer()
         print("Swap the asset")
         # add random nonce in note so we can send identicall txns
-        atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, addr_signer, [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
+        atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer, [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
         atc.execute(client, 4)
-        print_asset_holding(indexer_client, addr, climatecoin_asa_id)
+        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
 
         #
@@ -155,21 +161,21 @@ def demo():
         atc.add_method_call(
             app_id,
             get_method(iface, "move"),
-            addr,
+            manager_addr,
             sp,
-            addr_signer,
-            [created_nft_id, get_escrow_from_app(app_id), addr, 400],
+            manager_signer,
+            [created_nft_id, get_escrow_from_app(app_id), user_addr, 400],
         )
         atc.execute(client, 4)
-        print_asset_holding(indexer_client, addr, created_nft_id)
+        print_asset_holding(indexer_client, user_addr, created_nft_id)
 
         print("calling swap method")
         atc = AtomicTransactionComposer()
         # add random nonce in note so we can send identicall txns
-        atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, addr_signer, [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
+        atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer, [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
         atc.execute(client, 4)
 
-        print_asset_holding(indexer_client, addr, climatecoin_asa_id)
+        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
     except Exception as e:
         print(e)
     finally:
@@ -178,7 +184,7 @@ def demo():
         atc = AtomicTransactionComposer()
         atc.add_transaction(
             TransactionWithSigner(
-                txn=ApplicationDeleteTxn(addr, sp, app_id), signer=addr_signer
+                txn=ApplicationDeleteTxn(manager_addr, sp, app_id), signer=manager_signer
             )
         )
         atc.execute(client, 4)
