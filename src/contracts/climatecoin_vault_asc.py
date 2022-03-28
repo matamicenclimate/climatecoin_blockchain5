@@ -18,11 +18,11 @@ MINT_FEE=Bytes('nft_mint_fee')
 
 
 create_selector = MethodSignature(
-    "create_nft(string,string,uint64)uint64"
+    "create_nft(uint64,string)uint64"
 )
 @Subroutine(TealType.uint64)
 def create_nft():
-    amount = Btoi(Txn.application_args[3])
+    amount = Btoi(Txn.application_args[1])
     total = Mul(Div(amount, Int(100)), Minus(Int(100), App.globalGet(MINT_FEE)))
     fee = Mul(Div(amount, Int(100)), App.globalGet(MINT_FEE))
 
@@ -33,18 +33,14 @@ def create_nft():
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
                 TxnField.config_asset_unit_name: Bytes("CO2"),
-                # TxnField.config_asset_total: Int(1),
                 TxnField.config_asset_total: fee,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
                 TxnField.config_asset_reserve: Global.current_application_address(),
-                # TODO: we shouldnt use freeze and clawback
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
-                # TODO: why cant we move it if tits frozen?
                 TxnField.config_asset_default_frozen: Int(1),
-                # TxnField.config_asset_metadata_hash: Txn.application_args[1],
-                # TxnField.note: Txn.application_args[2]
+                TxnField.note: Txn.application_args[2]
             }
         ),
         InnerTxnBuilder.Next(),
@@ -53,18 +49,14 @@ def create_nft():
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
                 TxnField.config_asset_unit_name: Bytes("CO2"),
-                # TxnField.config_asset_total: Int(1),
                 TxnField.config_asset_total: total,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
                 TxnField.config_asset_reserve: Global.current_application_address(),
-                # TODO: we shouldnt use freeze and clawback
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
-                # TODO: why cant we move it if tits frozen?
                 TxnField.config_asset_default_frozen: Int(1),
-                # TxnField.config_asset_metadata_hash: Txn.application_args[1],
-                # TxnField.note: Txn.application_args[2]
+                TxnField.note: Txn.application_args[2]
             }
         ),
         InnerTxnBuilder.Submit(),

@@ -23,11 +23,10 @@
       "name": "create_nft",
       "desc": "Create an nft with appropriate parameters, return its id",
       "args": [
-        { "name": "metadata_hash", "type": "string" },
-        { "name": "nft_parameters", "type": "string" },
-        { "name": "total_supply", "type": "uint64" }
+        { "name": "total_supply", "type": "uint64" },
+        { "name": "metadata", "type": "string" }
       ],
-      "returns": { "name": "mint-tx-id", "type": "uint64" }
+      "returns": { "name": "developer-nft-id", "type": "uint64" }
     },
     {
       "name": "move",
