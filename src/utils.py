@@ -28,8 +28,15 @@ def print_asset_holding(myindexer, account, assetid):
 
     for balance in response["balances"]:
         if balance["address"] == account:
-            print(f"account {account} balance: {balance['amount']}")
+            print(f"account {account}; asset {assetid}; balance: {balance['amount']}")
             break
+
+def get_asset_holding(myindexer, account, assetid):
+    response = myindexer.asset_balances(asset_id = assetid)
+
+    for balance in response["balances"]:
+        if balance["address"] == account:
+            return balance["amount"]
 
 def get_dummy_metadata():
     metadata = {
