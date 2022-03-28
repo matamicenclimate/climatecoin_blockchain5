@@ -2,7 +2,7 @@ from audioop import add
 from email.headerregistry import Address
 import os
 from algosdk import *
-from algosdk.v2client import algod
+from algosdk.v2client import algod, indexer
 from algosdk.v2client.models import DryrunSource, DryrunRequest
 from algosdk.future.transaction import *
 from algosdk.atomic_transaction_composer import *
@@ -21,12 +21,18 @@ import hashlib
 import base64
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-url = "http://localhost:4001"
-# url = "https://node.testnet.algoexplorerapi.io"
-deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
+# url = "http://localhost:4001"
+url = "https://node.testnet.algoexplorerapi.io"
+# indexer_url = "http://localhost:8980"
+indexer_url = "https://algoindexer.testnet.algoexplorerapi.io"
+backend_deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
+test_joel_mnemonic_1="abandon list flash zero motor west pattern jelly shove then pass end runway city forward wrist oval prefer depth divide high address priority about naive"
+test_joel_mnemonic_2="buffalo eye system gadget swap banner company rebuild phone seek diet calm fashion hen opinion globe wire lazy address thunder memory tuna now about grocery"
 
 client = algod.AlgodClient(token, url)
-
+indexer_client = indexer.IndexerClient(
+    token, indexer_url
+)
 # Read in ABI description
 with open("src/contracts/climatecoin_vault_asc.json") as f:
     iface = Interface.from_json(f.read())
@@ -44,16 +50,12 @@ def get_escrow_from_app(app_id):
 
 def demo():
     # Create acct
-    # pk = mnemonic.to_private_key(deployer_mnemonic)
-    # addr = account.address_from_private_key(pk)
-    addr, pk = get_accounts()[0]
+    pk = mnemonic.to_private_key(test_joel_mnemonic_2)
+    addr = account.address_from_private_key(pk)
+    # addr, pk = get_accounts()[0]
     addr_signer = AccountTransactionSigner(pk)
     print("Using {}".format(addr))
 
-    # this will be our backend oracle, but we mock it for now
-    # oracle_addr, oracle_pk = get_accounts()[1]
-    # print("Using oracle {}".format(oracle_addr))
-    
     # Create app
     app_id = create_app(addr, pk)
     print("Created App with id: {}".format(app_id))
@@ -134,7 +136,7 @@ def demo():
         [created_nft_id, get_escrow_from_app(app_id), addr, 500],
     )
     atc.execute(client, 2)
-    print_asset_holding(client, addr, created_nft_id)
+    print_asset_holding(indexer_client, addr, created_nft_id)
 
     #
     # Swap them
@@ -143,7 +145,7 @@ def demo():
     # add random nonce in note so we can send identicall txns
     atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, addr_signer, [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
     atc.execute(client, 4)
-    print_asset_holding(client, addr, climatecoin_asa_id)
+    print_asset_holding(indexer_client, addr, climatecoin_asa_id)
 
 
     #
@@ -159,7 +161,7 @@ def demo():
         [created_nft_id, get_escrow_from_app(app_id), addr, 400],
     )
     atc.execute(client, 4)
-    print_asset_holding(client, addr, created_nft_id)
+    print_asset_holding(indexer_client, addr, created_nft_id)
 
     print("calling swap method")
     atc = AtomicTransactionComposer()
@@ -167,7 +169,7 @@ def demo():
     atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), addr, sp, addr_signer, [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
     atc.execute(client, 4)
 
-    print_asset_holding(client, addr, climatecoin_asa_id)
+    print_asset_holding(indexer_client, addr, climatecoin_asa_id)
 
 def get_app_call(addr, sp, app_id, args):
     return ApplicationCallTxn(

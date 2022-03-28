@@ -23,16 +23,23 @@ def wait_for_confirmation(client, txid):
     return txinfo
 
 
-def print_asset_holding(algodclient, account, assetid):
+def print_asset_holding(myindexer, account, assetid):
     # note: if you have an indexer instance available it is easier to just use this
     # response = myindexer.accounts(asset_id = assetid)
     # then loop thru the accounts returned and match the account you are looking for
-    account_info = algodclient.account_info(account)
-    idx = 0
-    for my_account_info in account_info["assets"]:
-        scrutinized_asset = account_info["assets"][idx]
-        idx = idx + 1
-        if scrutinized_asset["asset-id"] == assetid:
-            print("Asset ID: {} from {}".format(scrutinized_asset["asset-id"], account))
-            print(json.dumps(scrutinized_asset, indent=4))
+    response = myindexer.asset_balances(asset_id = assetid)
+    print(json.dumps(response, indent=4))
+
+    for balance in response["balances"]:
+        if balance["address"] == account:
+            print(balance["amount"])
             break
+    # account_info = algodclient.account_info(account)
+    # idx = 0
+    # for my_account_info in account_info["assets"]:
+    #     scrutinized_asset = account_info["assets"][idx]
+    #     idx = idx + 1
+    #     if scrutinized_asset["asset-id"] == assetid:
+    #         print("Asset ID: {} from {}".format(scrutinized_asset["asset-id"], account))
+    #         print(json.dumps(scrutinized_asset, indent=4))
+    #         break

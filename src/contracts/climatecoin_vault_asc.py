@@ -3,7 +3,7 @@
 
 from pyteal import *
 
-from pyteal_utils import aoptin, axfer, ensure_opted_in
+from pyteal_utils import ensure_opted_in
 from src.pyteal_utils import clawback_asset
 
 TEAL_VERSION = 6
@@ -14,6 +14,7 @@ return_prefix = Bytes("base16", "0x151f7c75")  # Literally hash('return')[:4]
 NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
 ORACLE_ADDRESS=Bytes('oracle_address')
 CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
+MINT_FEE=Bytes('nft_mint_fee')
 
 
 create_selector = MethodSignature(
@@ -21,6 +22,10 @@ create_selector = MethodSignature(
 )
 @Subroutine(TealType.uint64)
 def create_nft():
+    amount = Btoi(Txn.application_args[3])
+    total = Mul(Div(amount, Int(100)), Minus(Int(100), App.globalGet(MINT_FEE)))
+    fee = Mul(Div(amount, Int(100)), App.globalGet(MINT_FEE))
+
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -29,7 +34,27 @@ def create_nft():
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
                 TxnField.config_asset_unit_name: Bytes("CO2"),
                 # TxnField.config_asset_total: Int(1),
-                TxnField.config_asset_total: Btoi(Txn.application_args[3]),
+                TxnField.config_asset_total: fee,
+                TxnField.config_asset_decimals: Int(0),
+                TxnField.config_asset_manager: Global.current_application_address(),
+                TxnField.config_asset_reserve: Global.current_application_address(),
+                # TODO: we shouldnt use freeze and clawback
+                TxnField.config_asset_freeze: Global.current_application_address(),
+                TxnField.config_asset_clawback: Global.current_application_address(),
+                # TODO: why cant we move it if tits frozen?
+                TxnField.config_asset_default_frozen: Int(1),
+                # TxnField.config_asset_metadata_hash: Txn.application_args[1],
+                # TxnField.note: Txn.application_args[2]
+            }
+        ),
+        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetConfig,
+                TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
+                TxnField.config_asset_unit_name: Bytes("CO2"),
+                # TxnField.config_asset_total: Int(1),
+                TxnField.config_asset_total: total,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
                 TxnField.config_asset_reserve: Global.current_application_address(),
@@ -86,9 +111,9 @@ mint_climatecoin_selector = MethodSignature(
 @Subroutine(TealType.uint64)
 def mint_climatecoin():
     return Seq(
-        InnerTxnBuilder.Begin(),    
+        InnerTxnBuilder.Begin(),
         # This method accepts a dictionary of TxnField to value so all fields may be set 
-        InnerTxnBuilder.SetFields({ 
+        InnerTxnBuilder.SetFields({
             TxnField.type_enum: TxnType.AssetConfig,
             TxnField.config_asset_name: Bytes("Climatecoin"),
             TxnField.config_asset_unit_name: Bytes("CC"),
@@ -98,10 +123,10 @@ def mint_climatecoin():
             TxnField.config_asset_freeze: Global.current_application_address(),
             TxnField.config_asset_total: Int(150_000_000_000),
             TxnField.config_asset_decimals: Int(0),
-            TxnField.fee: Int(0),
+            TxnField.fee: Int(50),
         }),
         # Submit the transaction we just built
-        InnerTxnBuilder.Submit(),   
+        InnerTxnBuilder.Submit(),
         App.globalPut(CLIMATECOIN_ASA_ID, InnerTxn.created_asset_id()),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
         Int(1)
@@ -150,6 +175,7 @@ def contract():
         return Seq(
             # App.globalPut(NFT_MINTER_ADDRESS, Itob(Int(0))),
             App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),            
+            App.globalPut(MINT_FEE, Int(5)),            
             Int(1)
         )
 

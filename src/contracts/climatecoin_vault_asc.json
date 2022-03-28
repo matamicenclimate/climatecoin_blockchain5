@@ -27,7 +27,7 @@
         { "name": "nft_parameters", "type": "string" },
         { "name": "total_supply", "type": "uint64" }
       ],
-      "returns": { "name": "asset-id", "type": "uint64" }
+      "returns": { "name": "mint-tx-id", "type": "uint64" }
     },
     {
       "name": "move",
