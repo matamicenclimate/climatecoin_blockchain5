@@ -123,7 +123,7 @@ def demo():
         nft_total_supply = 321
 
         atc.add_method_call(app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
-                            [nft_total_supply, encoded], note=metadata_json.encode())
+                            [nft_total_supply], note=metadata_json.encode())
         results = atc.execute(client, 2)
 
         created_nft_id = results.abi_results[0].return_value
@@ -174,7 +174,7 @@ def demo():
         nft_total_supply = 2000
 
         atc.add_method_call(app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
-                            [nft_total_supply, encoded], note=metadata_json.encode())
+                            [nft_total_supply], note=metadata_json.encode())
         results = atc.execute(client, 2)
 
         created_nft_id = results.abi_results[0].return_value
