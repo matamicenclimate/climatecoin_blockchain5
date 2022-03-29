@@ -1,5 +1,10 @@
 {
   "name": "climatecoin_vault_arc4",
+  "networks": {
+    "testnet": {
+      "appID": 80758140
+    }
+  },
   "methods": [
     {
       "name": "mint_climatecoin",
@@ -13,7 +18,7 @@
       "args": [{ "name": "minter_address", "type": "address" }],
       "returns": { "type": "address" }
     },
-     {
+    {
       "name": "set_fee",
       "desc": "sets the nft minting fee",
       "args": [{ "name": "mint_fee", "type": "uint64" }],
@@ -28,9 +33,7 @@
     {
       "name": "create_nft",
       "desc": "Create an nft with appropriate parameters, return its id",
-      "args": [
-        { "name": "total_supply", "type": "uint64" }
-      ],
+      "args": [{ "name": "total_supply", "type": "uint64" }],
       "returns": { "name": "developer-nft-id", "type": "uint64" }
     },
     {

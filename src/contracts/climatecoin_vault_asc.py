@@ -3,7 +3,7 @@
 
 from pyteal import *
 
-from src.pyteal_utils import ensure_opted_in, clawback_asset
+from src.pyteal_utils import ensure_opted_in, clawback_asset, div_ceil
 
 TEAL_VERSION = 6
 
@@ -21,9 +21,15 @@ create_selector = MethodSignature(
 )
 @Subroutine(TealType.uint64)
 def create_nft():
-    amount = Btoi(Txn.application_args[1])
+    #
+    multiplier = Int(1000)
+    amount = Mul(Btoi(Txn.application_args[1]), multiplier)
+
     total = Mul(Div(amount, Int(100)), Minus(Int(100), App.globalGet(MINT_FEE)))
     fee = Mul(Div(amount, Int(100)), App.globalGet(MINT_FEE))
+
+    normalize_total = Div(total, multiplier)
+    normalize_fee = div_ceil(fee, multiplier)
 
     return Seq(
         InnerTxnBuilder.Begin(),
@@ -32,7 +38,7 @@ def create_nft():
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
                 TxnField.config_asset_unit_name: Bytes("CO2"),
-                TxnField.config_asset_total: fee,
+                TxnField.config_asset_total: normalize_fee,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
                 TxnField.config_asset_reserve: Global.current_application_address(),
@@ -48,7 +54,7 @@ def create_nft():
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
                 TxnField.config_asset_unit_name: Bytes("CO2"),
-                TxnField.config_asset_total: total,
+                TxnField.config_asset_total: normalize_total,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
                 TxnField.config_asset_reserve: Global.current_application_address(),

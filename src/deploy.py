@@ -120,7 +120,7 @@ def demo():
         atc = AtomicTransactionComposer()
         # Dummy metadata
         metadata_json, encoded = get_dummy_metadata()
-        nft_total_supply = 321
+        nft_total_supply = 250
 
         atc.add_method_call(app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
                             [nft_total_supply], note=metadata_json.encode())
