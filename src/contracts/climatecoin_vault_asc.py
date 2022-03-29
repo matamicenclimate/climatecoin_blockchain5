@@ -74,15 +74,15 @@ swap_nft_to_fungible_selector = MethodSignature(
 )
 @Subroutine(TealType.uint64)
 def swap_nft_to_fungible():
+
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
 
-    valid_swap = Seq([
-        Assert(Global.group_size() == Int(1)),
-        #  this application serves as the escrow for the fee
-        # Assert(transfer_txn.xfer_asset() == Btoi(Txn.application_args[1])),
-        # Assert(payment_txn.type_enum() == TxnType.Payment),
-        # Assert(payment_txn.amount() == App.globalGet(GLOBAL_SERVICE_FEE)),
-    ])
+    valid_swap = Assert(
+        And(
+            Txn.rekey_to() == Global.zero_address(),
+            Txn.close_remainder_to() == Global.zero_address(),
+            Txn.application_args.length() == Int(2),
+        ))
 
     return Seq(
         valid_swap,
@@ -107,7 +107,9 @@ mint_climatecoin_selector = MethodSignature(
 )
 @Subroutine(TealType.uint64)
 def mint_climatecoin():
+    can_mint = Assert(App.globalGet(CLIMATECOIN_ASA_ID) == Int(0))
     return Seq(
+        can_mint,
         InnerTxnBuilder.Begin(),
         # This method accepts a dictionary of TxnField to value so all fields may be set 
         InnerTxnBuilder.SetFields({
@@ -115,12 +117,12 @@ def mint_climatecoin():
             TxnField.config_asset_name: Bytes("Climatecoin"),
             TxnField.config_asset_unit_name: Bytes("CC"),
             TxnField.config_asset_manager: Global.current_application_address(),
-            TxnField.config_asset_clawback: Global.current_application_address(),
             TxnField.config_asset_reserve: Global.current_application_address(),
-            TxnField.config_asset_freeze: Global.current_application_address(),
+            TxnField.config_asset_clawback: Global.zero_address(),
+            TxnField.config_asset_freeze: Global.zero_address(),
             TxnField.config_asset_total: Int(150_000_000_000),
             TxnField.config_asset_decimals: Int(0),
-            TxnField.fee: Int(50),
+            TxnField.fee: Int(0),
         }),
         # Submit the transaction we just built
         InnerTxnBuilder.Submit(),
