@@ -17,7 +17,7 @@ MINT_FEE=Bytes('nft_mint_fee')
 
 
 create_selector = MethodSignature(
-    "create_nft(uint64,string)uint64"
+    "create_nft(uint64)uint64"
 )
 @Subroutine(TealType.uint64)
 def create_nft():
@@ -39,7 +39,7 @@ def create_nft():
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
-                TxnField.note: Txn.application_args[2]
+                TxnField.note: Txn.note()
             }
         ),
         InnerTxnBuilder.Next(),
@@ -55,7 +55,7 @@ def create_nft():
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
-                TxnField.note: Txn.application_args[2]
+                TxnField.note: Txn.note()
             }
         ),
         InnerTxnBuilder.Submit(),
