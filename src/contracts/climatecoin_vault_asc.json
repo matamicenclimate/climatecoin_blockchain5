@@ -37,6 +37,12 @@
       "returns": { "name": "developer-nft-id", "type": "uint64" }
     },
     {
+      "name": "unfreeze_nft",
+      "desc": "Create an nft with appropriate parameters, return its id",
+      "args": [{ "name": "royalty_asset", "type": "asset" }],
+      "returns": { "type": "void" }
+    },
+    {
       "name": "move",
       "desc": "Moves the asset passed from one account to another",
       "args": [

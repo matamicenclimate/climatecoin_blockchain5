@@ -69,6 +69,27 @@ def create_nft():
         Int(1),
     )
 
+unfreeze_nft_selector = MethodSignature(
+    "unfreeze_nft(asset)void"
+)
+@Subroutine(TealType.uint64)
+def unfreeze_nft():
+    asset_id = Txn.assets[Btoi(Txn.application_args[1])]
+
+    return Seq(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetFreeze,
+                TxnField.freeze_asset: asset_id,
+                TxnField.freeze_asset_frozen: Int(0),
+                TxnField.freeze_asset_account: Txn.sender(),
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+        Int(1),
+    )
+
 swap_nft_to_fungible_selector = MethodSignature(
     "swap_nft_to_fungible(asset)uint64"
 )
@@ -197,6 +218,7 @@ def contract():
         [And(Txn.application_args[0] == move_selector, from_creator), move()],
         [And(Txn.application_args[0] == create_selector, from_creator), create_nft()],
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
+        [Txn.application_args[0] == unfreeze_nft_selector, unfreeze_nft()],
         [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
     )
 

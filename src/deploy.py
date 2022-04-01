@@ -157,6 +157,8 @@ def demo():
         atc = AtomicTransactionComposer()
         print("[ 1 ] User swaps the asset")
         # add random nonce in note so we can send identicall txns
+        atc.add_method_call(app_id, get_method(iface, "unfreeze_nft"), user_addr, sp, user_signer,
+                            [created_nft_id], note=os.urandom(1))
         atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
                             [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
         atc.execute(client, 4)
