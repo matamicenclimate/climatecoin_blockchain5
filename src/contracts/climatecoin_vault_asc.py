@@ -95,7 +95,7 @@ swap_nft_to_fungible_selector = MethodSignature(
 )
 @Subroutine(TealType.uint64)
 def swap_nft_to_fungible():
-
+    transfer_tx = Gtxn[1]
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
 
     valid_swap = Assert(
@@ -103,19 +103,20 @@ def swap_nft_to_fungible():
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
+            Global.group_size() == Int(3)
         ))
 
     return Seq(
         valid_swap,
         ensure_opted_in(asset_id),
         # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
-        clawback_asset(asset_id, Txn.sender()),
+        # clawback_asset(asset_id, Txn.sender()),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: App.globalGet(CLIMATECOIN_ASA_ID),
-                TxnField.asset_amount: InnerTxn.asset_amount(),
+                TxnField.asset_amount: transfer_tx.asset_amount(),
                 TxnField.asset_receiver: Txn.sender(),
             }
         ),

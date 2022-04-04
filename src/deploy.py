@@ -159,60 +159,68 @@ def demo():
         # add random nonce in note so we can send identicall txns
         atc.add_method_call(app_id, get_method(iface, "unfreeze_nft"), user_addr, sp, user_signer,
                             [created_nft_id], note=os.urandom(1))
-        atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
-                            [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
-        atc.execute(client, 4)
-        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
-
-
-        #
-        # Do it again
-        print("[ X ] doing it again...")
-        # Mint  some nfts
-        sp = client.suggested_params()
-        atc = AtomicTransactionComposer()
-        # Dummy metadata
-        metadata_json, encoded = get_dummy_metadata()
-        nft_total_supply = 2000
-
-        atc.add_method_call(app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
-                            [nft_total_supply], note=metadata_json.encode())
-        results = atc.execute(client, 2)
-
-        created_nft_id = results.abi_results[0].return_value
-        print("[ 2 ] Created nft {}".format(created_nft_id))
-
-        print("[ 2 ] User opt-in to NFT")
-        sp = client.suggested_params()
-        atc = AtomicTransactionComposer()
-        # Optin to the created NFT
         atc.add_transaction(
             TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, created_nft_id), signer=user_signer
+                txn=AssetTransferTxn(user_addr, sp, get_escrow_from_app(app_id), tokens_to_move, created_nft_id), signer=user_signer
             )
         )
-        print("[ 2 ] Manager calling move method")
-        tokens_to_move = get_asset_holding(indexer_client, get_escrow_from_app(app_id), created_nft_id)
-        atc.add_method_call(
-            app_id,
-            get_method(iface, "move"),
-            manager_addr,
-            sp,
-            manager_signer,
-            [created_nft_id, get_escrow_from_app(app_id), user_addr, tokens_to_move],
-        )
+        atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
+                            [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
+        atc.build_group()
         atc.execute(client, 4)
         print_asset_holding(indexer_client, user_addr, created_nft_id)
 
-        print("[ 2 ] User calling swap method")
-        atc = AtomicTransactionComposer()
-        # add random nonce in note so we can send identical txns
-        atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
-                            [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
-        atc.execute(client, 4)
-        # give the indexer time to update
-        time.sleep(1)
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
+
+
+        # #
+        # # Do it again
+        # print("[ X ] doing it again...")
+        # # Mint  some nfts
+        # sp = client.suggested_params()
+        # atc = AtomicTransactionComposer()
+        # # Dummy metadata
+        # metadata_json, encoded = get_dummy_metadata()
+        # nft_total_supply = 2000
+        #
+        # atc.add_method_call(app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
+        #                     [nft_total_supply], note=metadata_json.encode())
+        # results = atc.execute(client, 2)
+        #
+        # created_nft_id = results.abi_results[0].return_value
+        # print("[ 2 ] Created nft {}".format(created_nft_id))
+        #
+        # print("[ 2 ] User opt-in to NFT")
+        # sp = client.suggested_params()
+        # atc = AtomicTransactionComposer()
+        # # Optin to the created NFT
+        # atc.add_transaction(
+        #     TransactionWithSigner(
+        #         txn=AssetTransferTxn(user_addr, sp, user_addr, 0, created_nft_id), signer=user_signer
+        #     )
+        # )
+        # print("[ 2 ] Manager calling move method")
+        # tokens_to_move = get_asset_holding(indexer_client, get_escrow_from_app(app_id), created_nft_id)
+        # atc.add_method_call(
+        #     app_id,
+        #     get_method(iface, "move"),
+        #     manager_addr,
+        #     sp,
+        #     manager_signer,
+        #     [created_nft_id, get_escrow_from_app(app_id), user_addr, tokens_to_move],
+        # )
+        # atc.execute(client, 4)
+        # print_asset_holding(indexer_client, user_addr, created_nft_id)
+        #
+        # print("[ 2 ] User calling swap method")
+        # atc = AtomicTransactionComposer()
+        # # add random nonce in note so we can send identical txns
+        # atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
+        #                     [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
+        # atc.execute(client, 4)
+        # # give the indexer time to update
+        # time.sleep(1)
+        # print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
     except Exception as e:
         print(e)
     finally:
