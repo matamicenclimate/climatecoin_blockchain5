@@ -14,6 +14,7 @@ NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
 ORACLE_ADDRESS=Bytes('oracle_address')
 CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 MINT_FEE=Bytes('nft_mint_fee')
+DUMP_ADDRESS=Bytes('dump_address')
 
 
 create_selector = MethodSignature(
@@ -31,6 +32,7 @@ def create_nft():
     normalize_total = Div(total, multiplier)
     normalize_fee = div_ceil(fee, multiplier)
 
+    created_asa_id = ScratchVar()
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -41,11 +43,20 @@ def create_nft():
                 TxnField.config_asset_total: normalize_fee,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: Global.current_application_address(),
+                TxnField.config_asset_reserve: App.globalGet(DUMP_ADDRESS),
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
                 TxnField.note: Txn.note()
+            }
+        ),
+        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetFreeze,
+                TxnField.freeze_asset: InnerTxn.created_asset_id(),
+                TxnField.freeze_asset_frozen: Int(0),
+                TxnField.freeze_asset_account: App.globalGet(DUMP_ADDRESS),
             }
         ),
         InnerTxnBuilder.Next(),
@@ -57,13 +68,23 @@ def create_nft():
                 TxnField.config_asset_total: normalize_total,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: Global.current_application_address(),
+                TxnField.config_asset_reserve: App.globalGet(DUMP_ADDRESS),
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
                 TxnField.note: Txn.note()
             }
         ),
+        created_asa_id.store(InnerTxn.created_asset_id()),
+        # InnerTxnBuilder.Next(),
+        # InnerTxnBuilder.SetFields(
+        #     {
+        #         TxnField.type_enum: TxnType.AssetFreeze,
+        #         TxnField.freeze_asset: InnerTxn.created_asset_id(),
+        #         TxnField.freeze_asset_frozen: Int(0),
+        #         TxnField.freeze_asset_account: App.globalGet(DUMP_ADDRESS),
+        #     }
+        # ),
         InnerTxnBuilder.Submit(),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
         Int(1),
@@ -97,13 +118,14 @@ swap_nft_to_fungible_selector = MethodSignature(
 def swap_nft_to_fungible():
     transfer_tx = Gtxn[1]
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
-
+    asset_supply = AssetParam.total(transfer_tx.xfer_asset()).value()
     valid_swap = Assert(
         And(
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
-            Global.group_size() == Int(3)
+            Global.group_size() == Int(3),
+            asset_id == transfer_tx.xfer_asset(),
         ))
 
     return Seq(
@@ -118,6 +140,50 @@ def swap_nft_to_fungible():
                 TxnField.xfer_asset: App.globalGet(CLIMATECOIN_ASA_ID),
                 TxnField.asset_amount: transfer_tx.asset_amount(),
                 TxnField.asset_receiver: Txn.sender(),
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+        Int(1)
+    )
+
+burn_parameters_selector = MethodSignature(
+    "burn_parameters(asset)uint64"
+)
+@Subroutine(TealType.uint64)
+def burn_parameters():
+    return Seq(
+        Log(Concat(return_prefix, Itob(Int(1)))),
+        Int(1)
+    )
+
+burn_climatecoins_selector = MethodSignature(
+    "burn_climatecoins(asset)void"
+)
+@Subroutine(TealType.uint64)
+def burn_climatecoins():
+    transfer_tx = Gtxn[0]
+    asset_id = Txn.assets[Btoi(Txn.application_args[1])]
+    valid_swap = Assert(
+        And(
+            Txn.rekey_to() == Global.zero_address(),
+            Txn.close_remainder_to() == Global.zero_address(),
+            Txn.application_args.length() == Int(2),
+            Global.group_size() == Int(2),
+            Len(App.globalGet(DUMP_ADDRESS)) != Int(0)
+        ))
+
+    return Seq(
+        valid_swap,
+        # ensure_opted_in(asset_id),
+        # # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
+        # # clawback_asset(asset_id, Txn.sender()),
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetTransfer,
+                TxnField.xfer_asset: asset_id,
+                TxnField.asset_amount: transfer_tx.asset_amount(),
+                TxnField.asset_receiver: App.globalGet(DUMP_ADDRESS),
             }
         ),
         InnerTxnBuilder.Submit(),
@@ -176,6 +242,17 @@ def set_fee():
         Int(1)
     )
 
+set_dump_selector = MethodSignature(
+    "set_dump(address)address"
+)
+@Subroutine(TealType.uint64)
+def set_dump():
+    return Seq(
+        App.globalPut(DUMP_ADDRESS, Txn.application_args[1]),
+        Log(Concat(return_prefix, Txn.application_args[1])),
+        Int(1)
+    )
+
 move_selector = MethodSignature(
     "move(asset,account,account,uint64)void"
 )
@@ -219,6 +296,8 @@ def contract():
         [And(Txn.application_args[0] == move_selector, from_creator), move()],
         [And(Txn.application_args[0] == create_selector, from_creator), create_nft()],
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
+        [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],
+        [And(Txn.application_args[0] == burn_climatecoins_selector), burn_climatecoins()],
         [Txn.application_args[0] == unfreeze_nft_selector, unfreeze_nft()],
         [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
     )

@@ -25,6 +25,12 @@
       "returns": { "type": "uint64" }
     },
     {
+      "name": "set_dump",
+      "desc": "sets the dumping address",
+      "args": [{ "name": "dump_address", "type": "address" }],
+      "returns": { "type": "address" }
+    },
+    {
       "name": "swap_nft_to_fungible",
       "desc": "swap NFT to Climatecoin",
       "args": [{ "name": "nft_id", "type": "asset" }],
@@ -40,6 +46,18 @@
       "name": "unfreeze_nft",
       "desc": "Create an nft with appropriate parameters, return its id",
       "args": [{ "name": "royalty_asset", "type": "asset" }],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "burn_parameters",
+      "desc": "Burn climatecoins to compensate the emissions from an asset",
+      "args": [{ "name": "compensating_asset", "type": "asset" }],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "burn_climatecoins",
+      "desc": "burn the climatecoins",
+      "args": [{ "name": "asset", "type": "asset" }],
       "returns": { "type": "void" }
     },
     {

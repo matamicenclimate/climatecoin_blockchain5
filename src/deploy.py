@@ -1,6 +1,3 @@
-import time
-from audioop import add
-from email.headerregistry import Address
 import os
 from algosdk import *
 from algosdk.v2client import algod, indexer
@@ -63,9 +60,12 @@ def demo():
     # user_pk = mnemonic.to_private_key(random_user)
     # user_addr = account.address_from_private_key(user_pk)
     user_addr, user_pk = get_accounts()[1]
-
     user_signer = AccountTransactionSigner(user_pk)
     print("Using {}".format(user_addr))
+
+    dump_addr, dump_pk = get_accounts()[2]
+    dump_signer = AccountTransactionSigner(dump_pk)
+    print("Using {}".format(dump_addr))
 
     # Create app
     app_id = create_app(manager_addr, manager_pk)
@@ -96,6 +96,8 @@ def demo():
         atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
         atc.add_method_call(app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
                             [manager_addr])
+        atc.add_method_call(app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
+                            [dump_addr])
         # atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
 
         result = atc.execute(client, 4)
@@ -139,8 +141,10 @@ def demo():
                 txn=AssetTransferTxn(user_addr, sp, user_addr, 0, created_nft_id), signer=user_signer
             )
         )
+
         print("[ 1 ] Manager calling move method")
         tokens_to_move = get_asset_holding(indexer_client, get_escrow_from_app(app_id), created_nft_id)
+        print(tokens_to_move)
         atc.add_method_call(
             app_id,
             get_method(iface, "move"),
@@ -151,6 +155,15 @@ def demo():
         )
         atc.execute(client, 2)
         print_asset_holding(indexer_client, user_addr, created_nft_id)
+
+        print("[ 1 ] Dump optin to NFT")
+        atc = AtomicTransactionComposer()
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=AssetTransferTxn(dump_addr, sp, dump_addr, 0, created_nft_id), signer=dump_signer
+            )
+        )
+        atc.execute(client, 2)
 
         #
         # Swap them
@@ -171,6 +184,33 @@ def demo():
         print_asset_holding(indexer_client, user_addr, created_nft_id)
 
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
+
+        climatecoins_to_burn = get_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
+
+        #
+        # Swap them
+        atc = AtomicTransactionComposer()
+        print(f"[ 1 ] User burns the Climatecoins {climatecoins_to_burn}")
+        # add random nonce in note so we can send identicall txns
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=AssetTransferTxn(user_addr, sp, get_escrow_from_app(app_id), climatecoins_to_burn, climatecoin_asa_id),
+                signer=user_signer
+            )
+        )
+        # test
+        oracle_signer = dump_signer
+        atc.add_method_call(app_id, get_method(iface, "burn_climatecoins"), manager_addr, sp, manager_signer,
+                            [created_nft_id], accounts=[dump_addr], note=os.urandom(1))
+        atc.build_group()
+        atc.execute(client, 4)
+        print_asset_holding(indexer_client, user_addr, created_nft_id)
+
+        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
+
+        print("[ 1 ] App's nft balance")
+        print_asset_holding(indexer_client, get_escrow_from_app(app_id), created_nft_id)
+
 
 
         # #
