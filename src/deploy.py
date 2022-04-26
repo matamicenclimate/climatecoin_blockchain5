@@ -1,7 +1,5 @@
 import os
-from algosdk import *
-from algosdk.v2client import algod, indexer
-from algosdk.v2client.models import DryrunSource, DryrunRequest
+from algosdk.v2client import indexer
 from algosdk.future.transaction import *
 from algosdk.atomic_transaction_composer import *
 from algosdk.abi import *
@@ -13,10 +11,6 @@ from sandbox import get_accounts
 from src.contracts.climatecoin_vault_asc import get_approval, get_clear
 from src.utils import print_asset_holding, get_dummy_metadata, get_asset_holding
 from utils import compile_program, wait_for_confirmation
-
-import json
-import hashlib
-import base64
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 url = "http://localhost:4001"
@@ -67,6 +61,7 @@ def demo():
     dump_signer = AccountTransactionSigner(dump_pk)
     print("Using {}".format(dump_addr))
 
+    #
     # Create app
     app_id = create_app(manager_addr, manager_pk)
     print("Created App with id: {}".format(app_id))
@@ -75,23 +70,20 @@ def demo():
     print("Application Address: {}".format(app_addr))
 
     try:
-        sp = client.suggested_params()
         #
         # Setup the smart contract
+        sp = client.suggested_params()
+        sp.fee = sp.min_fee * 3
         atc = AtomicTransactionComposer()
-
         #
         # TODO: how many algos does this cost? do we have to up the fee?
         # cover for the 2 innerTxns
-        sp.fee = sp.min_fee * 3
         atc.add_transaction(
             TransactionWithSigner(
                 txn=PaymentTxn(manager_addr, sp, get_escrow_from_app(app_id), util.algos_to_microalgos(1), None),
                 signer=manager_signer
             )
         )
-
-        sp.fee = sp.min_fee * 3
 
         atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
         atc.add_method_call(app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
@@ -104,6 +96,17 @@ def demo():
         for res in result.abi_results:
             print(res.return_value)
         climatecoin_asa_id = result.abi_results[0].return_value
+
+        #
+        # Rekey dump to smart contract so that we can perform opt-ins from the SC
+        print("[ 0 ] rekeying dump to smart contract")
+        atc = AtomicTransactionComposer()
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=PaymentTxn(dump_addr, sp, dump_addr, 0, rekey_to=get_escrow_from_app(app_id)), signer=dump_signer
+            )
+        )
+        atc.execute(client, 2) 
 
         #
         # Optin to climatecoin
@@ -182,7 +185,6 @@ def demo():
         atc.build_group()
         atc.execute(client, 4)
         print_asset_holding(indexer_client, user_addr, created_nft_id)
-
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
         climatecoins_to_burn = get_asset_holding(indexer_client, user_addr, climatecoin_asa_id)

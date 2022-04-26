@@ -32,7 +32,6 @@ def create_nft():
     normalize_total = Div(total, multiplier)
     normalize_fee = div_ceil(fee, multiplier)
 
-    created_asa_id = ScratchVar()
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -53,15 +52,6 @@ def create_nft():
         InnerTxnBuilder.Next(),
         InnerTxnBuilder.SetFields(
             {
-                TxnField.type_enum: TxnType.AssetFreeze,
-                TxnField.freeze_asset: InnerTxn.created_asset_id(),
-                TxnField.freeze_asset_frozen: Int(0),
-                TxnField.freeze_asset_account: App.globalGet(DUMP_ADDRESS),
-            }
-        ),
-        InnerTxnBuilder.Next(),
-        InnerTxnBuilder.SetFields(
-            {
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
                 TxnField.config_asset_unit_name: Bytes("CO2"),
@@ -75,16 +65,6 @@ def create_nft():
                 TxnField.note: Txn.note()
             }
         ),
-        created_asa_id.store(InnerTxn.created_asset_id()),
-        # InnerTxnBuilder.Next(),
-        # InnerTxnBuilder.SetFields(
-        #     {
-        #         TxnField.type_enum: TxnType.AssetFreeze,
-        #         TxnField.freeze_asset: InnerTxn.created_asset_id(),
-        #         TxnField.freeze_asset_frozen: Int(0),
-        #         TxnField.freeze_asset_account: App.globalGet(DUMP_ADDRESS),
-        #     }
-        # ),
         InnerTxnBuilder.Submit(),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
         Int(1),
@@ -118,14 +98,19 @@ swap_nft_to_fungible_selector = MethodSignature(
 def swap_nft_to_fungible():
     transfer_tx = Gtxn[1]
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
+    # ensure we are swapping an NFT fully
     asset_supply = AssetParam.total(transfer_tx.xfer_asset()).value()
+    # ensure the NFT was minted by the contract
+    asset_minter = AssetParam.creator(transfer_tx.xfer_asset()).value()
     valid_swap = Assert(
         And(
+            # no funny stuff
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(3),
             asset_id == transfer_tx.xfer_asset(),
+            asset_minter == Global.current_application_address()
         ))
 
     return Seq(
@@ -163,7 +148,7 @@ burn_climatecoins_selector = MethodSignature(
 def burn_climatecoins():
     transfer_tx = Gtxn[0]
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
-    valid_swap = Assert(
+    valid_burn = Assert(
         And(
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
@@ -173,7 +158,7 @@ def burn_climatecoins():
         ))
 
     return Seq(
-        valid_swap,
+        valid_burn,
         # ensure_opted_in(asset_id),
         # # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
         # # clawback_asset(asset_id, Txn.sender()),
