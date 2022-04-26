@@ -18,7 +18,7 @@ DUMP_ADDRESS=Bytes('dump_address')
 
 
 create_selector = MethodSignature(
-    "create_nft(uint64)uint64"
+    "create_nft(uint64,account)uint64"
 )
 @Subroutine(TealType.uint64)
 def create_nft():
@@ -49,7 +49,9 @@ def create_nft():
                 TxnField.note: Txn.note()
             }
         ),
-        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.Submit(),
+
+        InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetConfig,
@@ -67,6 +69,18 @@ def create_nft():
         ),
         InnerTxnBuilder.Submit(),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
+        # InnerTxnBuilder.Begin(),
+        # InnerTxnBuilder.SetFields(
+        #     {
+        #         TxnField.type_enum: TxnType.AssetTransfer,
+        #         TxnField.xfer_asset: InnerTxn.created_asset_id(),
+        #         TxnField.asset_receiver: App.globalGet(DUMP_ADDRESS),
+        #         TxnField.asset_sender: App.globalGet(DUMP_ADDRESS),
+        #         TxnField.sender: App.globalGet(DUMP_ADDRESS),
+        #         TxnField.asset_amount: Int(0)
+        #     }
+        # ),
+        # InnerTxnBuilder.Submit(),
         Int(1),
     )
 
@@ -101,7 +115,7 @@ def swap_nft_to_fungible():
     # ensure we are swapping an NFT fully
     asset_supply = AssetParam.total(transfer_tx.xfer_asset()).value()
     # ensure the NFT was minted by the contract
-    asset_minter = AssetParam.creator(transfer_tx.xfer_asset()).value()
+    asset_minter = AssetParam.creator(transfer_tx.xfer_asset())
     valid_swap = Assert(
         And(
             # no funny stuff
@@ -110,10 +124,11 @@ def swap_nft_to_fungible():
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(3),
             asset_id == transfer_tx.xfer_asset(),
-            asset_minter == Global.current_application_address()
+            asset_minter.value() == Global.current_application_address()
         ))
 
     return Seq(
+        asset_minter,
         valid_swap,
         ensure_opted_in(asset_id),
         # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
@@ -290,7 +305,7 @@ def contract():
     return Cond(
         #  handle app creation
         [Txn.application_id() == Int(0), Return(initialize_vault())],
-        #  allow all to opt-in and close-out
+        #  disallow all to opt-in and close-out
         [Txn.on_completion() == OnComplete.OptIn, Reject()],
         [Txn.on_completion() == OnComplete.CloseOut, Reject()],
         #  allow creator to update and delete app
@@ -301,7 +316,21 @@ def contract():
 
 
 def clear():
-    return Approve()
+    return Return(
+        Seq(
+            InnerTxnBuilder.Begin(),
+            InnerTxnBuilder.SetFields(
+                {
+                    TxnField.type_enum: TxnType.Payment,
+                    TxnField.receiver: Global.current_application_address(),
+                    TxnField.rekey_to: App.globalGet(DUMP_ADDRESS),
+                    TxnField.sender: Global.current_application_address()
+                }
+            ),
+            InnerTxnBuilder.Submit(),
+            Int(1)
+        )
+    )
 
 
 def get_approval():

@@ -33,10 +33,16 @@ def print_asset_holding(myindexer, account, assetid):
 
 def get_asset_holding(myindexer, account, assetid):
     response = myindexer.asset_balances(asset_id = assetid)
-
+    # print(response)
     for balance in response["balances"]:
         if balance["address"] == account:
             return balance["amount"]
+
+
+def get_asset_supply(myindexer, assetid):
+    response = myindexer.asset_info(asset_id = assetid)
+    # print(response)
+    return response["asset"]["params"]["total"]
 
 def get_dummy_metadata():
     metadata = {

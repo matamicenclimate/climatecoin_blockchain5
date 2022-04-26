@@ -9,7 +9,7 @@ from algosdk import util
 from sandbox import get_accounts
 
 from src.contracts.climatecoin_vault_asc import get_approval, get_clear
-from src.utils import print_asset_holding, get_dummy_metadata, get_asset_holding
+from src.utils import get_asset_supply, print_asset_holding, get_dummy_metadata, get_asset_holding
 from utils import compile_program, wait_for_confirmation
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -99,18 +99,18 @@ def demo():
 
         #
         # Rekey dump to smart contract so that we can perform opt-ins from the SC
-        print("[ 0 ] rekeying dump to smart contract")
-        atc = AtomicTransactionComposer()
-        atc.add_transaction(
-            TransactionWithSigner(
-                txn=PaymentTxn(dump_addr, sp, dump_addr, 0, rekey_to=get_escrow_from_app(app_id)), signer=dump_signer
-            )
-        )
-        atc.execute(client, 2) 
+        # print("[ 0 ] rekeying dump to smart contract")
+        # atc = AtomicTransactionComposer()
+        # atc.add_transaction(
+        #     TransactionWithSigner(
+        #         txn=PaymentTxn(dump_addr, sp, dump_addr, 0, rekey_to=get_escrow_from_app(app_id)), signer=dump_signer
+        #     )
+        # )
+        # atc.execute(client, 2) 
 
         #
         # Optin to climatecoin
-        print("[ 0 ] user opted into climatecoin")
+        print("[ 0 ] user optin into climatecoin")
         atc = AtomicTransactionComposer()
         atc.add_transaction(
             TransactionWithSigner(
@@ -121,6 +121,7 @@ def demo():
 
         #
         # Mint  some nfts
+        print("[ 0 ] mint an NFT")
         sp = client.suggested_params()
         atc = AtomicTransactionComposer()
         # Dummy metadata
@@ -128,7 +129,7 @@ def demo():
         nft_total_supply = 250
 
         atc.add_method_call(app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
-                            [nft_total_supply], note=metadata_json.encode())
+                            [nft_total_supply, dump_addr], note=metadata_json.encode())
         results = atc.execute(client, 2)
 
         created_nft_id = results.abi_results[0].return_value
@@ -137,17 +138,19 @@ def demo():
         print("[ 1 ] User optin to NFT")
         sp = client.suggested_params()
         atc = AtomicTransactionComposer()
-
         # Optin to the created NFT
         atc.add_transaction(
             TransactionWithSigner(
                 txn=AssetTransferTxn(user_addr, sp, user_addr, 0, created_nft_id), signer=user_signer
             )
         )
+        atc.execute(client, 2)
 
+        
         print("[ 1 ] Manager calling move method")
-        tokens_to_move = get_asset_holding(indexer_client, get_escrow_from_app(app_id), created_nft_id)
+        tokens_to_move = get_asset_supply(indexer_client, created_nft_id)
         print(tokens_to_move)
+        atc = AtomicTransactionComposer()
         atc.add_method_call(
             app_id,
             get_method(iface, "move"),
@@ -160,13 +163,13 @@ def demo():
         print_asset_holding(indexer_client, user_addr, created_nft_id)
 
         print("[ 1 ] Dump optin to NFT")
-        atc = AtomicTransactionComposer()
-        atc.add_transaction(
-            TransactionWithSigner(
-                txn=AssetTransferTxn(dump_addr, sp, dump_addr, 0, created_nft_id), signer=dump_signer
-            )
-        )
-        atc.execute(client, 2)
+        # atc = AtomicTransactionComposer()
+        # atc.add_transaction(
+        #     TransactionWithSigner(
+        #         txn=AssetTransferTxn(dump_addr, sp, dump_addr, 0, created_nft_id), signer=dump_signer
+        #     )
+        # )
+        # atc.execute(client, 2)
 
         #
         # Swap them
