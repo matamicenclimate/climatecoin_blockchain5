@@ -4,7 +4,7 @@
 from pyteal import *
 
 from src.pyteal_utils import ensure_opted_in, clawback_asset, div_ceil
-
+from src.contracts.climatecoin_dump_asc import do_optin_selector
 TEAL_VERSION = 6
 
 return_prefix = Bytes("base16", "0x151f7c75")  # Literally hash('return')[:4]
@@ -19,7 +19,7 @@ DUMP_APP_ID=Bytes('dump_app_id')
 
 
 create_selector = MethodSignature(
-    "create_nft(uint64,account)uint64"
+    "create_nft(uint64,application)uint64"
 )
 @Subroutine(TealType.uint64)
 def create_nft():
@@ -34,7 +34,7 @@ def create_nft():
     normalize_fee = div_ceil(fee, multiplier)
 
     dump_address = Sha512_256(
-        Concat(Bytes("appID"), App.globalGet(DUMP_APP_ID))
+        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
     )
 
     return Seq(
@@ -73,18 +73,22 @@ def create_nft():
         ),
         InnerTxnBuilder.Submit(),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
-        # InnerTxnBuilder.Begin(),
-        # InnerTxnBuilder.SetFields(
-        #     {
-        #         TxnField.type_enum: TxnType.AssetTransfer,
-        #         TxnField.xfer_asset: InnerTxn.created_asset_id(),
-        #         TxnField.asset_receiver: App.globalGet(DUMP_ADDRESS),
-        #         TxnField.asset_sender: App.globalGet(DUMP_ADDRESS),
-        #         TxnField.sender: App.globalGet(DUMP_ADDRESS),
-        #         TxnField.asset_amount: Int(0)
-        #     }
-        # ),
-        # InnerTxnBuilder.Submit(),
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: App.globalGet(DUMP_APP_ID),
+                # Pass the selector as the first arg to trigger the `echo` method
+                TxnField.application_args: [
+                    do_optin_selector, 
+                    Itob(Int(0)) # first item in assets array
+                ],
+                TxnField.assets: [InnerTxn.created_asset_id()],
+                # Set fee to 0 so caller has to cover it
+                TxnField.fee: Int(0),
+            }
+        ),
+        InnerTxnBuilder.Submit(),
         Int(1),
     )
 
@@ -257,7 +261,7 @@ set_dump_selector = MethodSignature(
 @Subroutine(TealType.uint64)
 def set_dump():
     return Seq(
-        App.globalPut(DUMP_APP_ID, Txn.application_args[1]),
+        App.globalPut(DUMP_APP_ID, Btoi(Txn.application_args[1])),
         Log(Concat(return_prefix, Txn.application_args[1])),
         Int(1)
     )

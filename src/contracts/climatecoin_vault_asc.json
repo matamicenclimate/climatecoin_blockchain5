@@ -41,7 +41,7 @@
       "desc": "Create an nft with appropriate parameters, return its id",
       "args": [
         { "name": "total_supply", "type": "uint64" },
-        { "name": "dump_address", "type": "account" }
+        { "name": "dump_app_id", "type": "application" }
       ],
       "returns": { "name": "developer-nft-id", "type": "uint64" }
     },

@@ -1,3 +1,4 @@
+from email.mime import application
 import os
 from algosdk.v2client import indexer
 from algosdk.future.transaction import *
@@ -97,7 +98,6 @@ def demo():
                             [manager_addr])
         atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
-
         atc.add_method_call(dump_app_id, get_method(dump_iface, "set_vault_app"), manager_addr, sp, manager_signer,
                             [vault_app_id])
 
@@ -121,13 +121,14 @@ def demo():
         # Mint  some nfts
         print("[ 0 ] mint an NFT")
         sp = client.suggested_params()
+        sp.fee = sp.min_fee * 3
         atc = AtomicTransactionComposer()
         # Dummy metadata
         metadata_json, encoded = get_dummy_metadata()
         nft_total_supply = 250
 
         atc.add_method_call(vault_app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
-                            [nft_total_supply, dump_app_addr], note=metadata_json.encode())
+                            [nft_total_supply, dump_app_id], note=metadata_json.encode())
         results = atc.execute(client, 2)
 
         created_nft_id = results.abi_results[0].return_value
