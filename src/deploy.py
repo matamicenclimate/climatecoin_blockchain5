@@ -30,6 +30,8 @@ indexer_client = indexer.IndexerClient(
 with open("src/contracts/climatecoin_vault_asc.json") as f:
     iface = Interface.from_json(f.read())
 
+with open("src/contracts/climatecoin_dump_asc.json") as f:
+    dump_iface = Interface.from_json(f.read())
 
 def get_method(i: Interface, name: str) -> Method:
     for m in i.methods:
@@ -95,6 +97,9 @@ def demo():
                             [manager_addr])
         atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
+
+        atc.add_method_call(dump_app_id, get_method(dump_iface, "set_vault_app"), manager_addr, sp, manager_signer,
+                            [vault_app_id])
 
         result = atc.execute(client, 4)
         for res in result.abi_results:

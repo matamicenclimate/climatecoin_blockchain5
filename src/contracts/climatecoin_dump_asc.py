@@ -38,12 +38,19 @@ set_vault_address_selector = MethodSignature(
 @Subroutine(TealType.uint64)
 def set_vault_address():
     return Seq(
-        App.globalPut(VAULT_APP_ADDRESS, Txn.application_args[1]),
+        App.globalPut(VAULT_APP_ADDRESS, Btoi(Txn.application_args[1])),
         Int(1)
     )
 
 
 def contract():
+
+    def initialize_dump():
+        return Seq(
+            App.globalPut(VAULT_APP_ADDRESS, Int(0)),
+            Int(1)
+        )
+
     from_creator = Txn.sender() == Global.creator_address()
     # only accept innerTxns from other contracts
     from_vault = Global.caller_app_id() == App.globalGet(VAULT_APP_ADDRESS)
@@ -53,9 +60,11 @@ def contract():
         [And(Txn.application_args[0] == set_vault_address_selector, from_creator), set_vault_address()],
     )
 
+    
+
     return Cond(
         #  handle app creation
-        [Txn.application_id() == Int(0), Return(Int(1))],
+        [Txn.application_id() == Int(0), Return(initialize_dump())],
         #  disallow all to opt-in and close-out
         [Txn.on_completion() == OnComplete.OptIn, Reject()],
         [Txn.on_completion() == OnComplete.CloseOut, Reject()],

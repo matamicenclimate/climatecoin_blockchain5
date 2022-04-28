@@ -129,7 +129,7 @@ def swap_nft_to_fungible():
             Global.group_size() == Int(3),
             asset_id == transfer_tx.xfer_asset(),
             # not working?
-            # asset_minter.value() == Global.current_application_address()
+            asset_minter.value() == Global.current_application_address()
         ))
 
     return Seq(
