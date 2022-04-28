@@ -10,7 +10,6 @@ TEAL_VERSION = 6
 return_prefix = Bytes("base16", "0x151f7c75")  # Literally hash('return')[:4]
 
 # Global Vars
-DUMP_ADDRESS=Bytes('dump_address')
 VAULT_APP_ADDRESS=Bytes('vault_app_id')
 
 do_optin_selector = MethodSignature(
@@ -26,7 +25,7 @@ def do_optin():
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_id,
                 TxnField.asset_amount: Int(0),
-                TxnField.asset_receiver: Global.current_application_address,
+                TxnField.asset_receiver: Global.current_application_address(),
             }
         ),
         InnerTxnBuilder.Submit(),
@@ -36,7 +35,7 @@ def do_optin():
 set_vault_address_selector = MethodSignature(
     "set_vault_app(uint64)void"
 )
-@Subroutine(TealType.none)
+@Subroutine(TealType.uint64)
 def set_vault_address():
     return Seq(
         App.globalPut(VAULT_APP_ADDRESS, Txn.application_args[1]),

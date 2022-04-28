@@ -7,6 +7,7 @@ from algosdk.encoding import checksum, encode_address
 from algosdk import util
 
 from sandbox import get_accounts
+from src.contracts.climatecoin_dump_asc import get_dump_approval, get_dump_clear
 
 from src.contracts.climatecoin_vault_asc import get_approval, get_clear
 from src.utils import get_asset_supply, print_asset_holding, get_dummy_metadata, get_asset_holding
@@ -69,6 +70,12 @@ def demo():
     app_addr = logic.get_application_address(app_id)
     print("Application Address: {}".format(app_addr))
 
+    dump_app_id = create_dump_app(manager_addr, manager_pk)
+    print("Created App with id: {}".format(dump_app_id))
+
+    dump_app_addr = logic.get_application_address(dump_app_id)
+    print("Dump Application Address: {}".format(dump_app_addr))
+
     try:
         #
         # Setup the smart contract
@@ -89,7 +96,7 @@ def demo():
         atc.add_method_call(app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
                             [manager_addr])
         atc.add_method_call(app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
-                            [dump_addr])
+                            [dump_app_id])
         # atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
 
         result = atc.execute(client, 4)
@@ -161,7 +168,7 @@ def demo():
             [created_nft_id, get_escrow_from_app(app_id), user_addr, tokens_to_move],
         )
         atc.execute(client, 2)
-        print_asset_holding(indexer_client, user_addr, created_nft_id)
+        print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
 
         print("[ 1 ] Dump optin to NFT")
         # atc = AtomicTransactionComposer()
@@ -171,6 +178,12 @@ def demo():
         #     )
         # )
         # atc.execute(client, 2)
+
+        #
+        # Print the initial asset holdings
+        print("[ 1 ] Initial holdings")
+        print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
+        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
 
         #
         # Swap them
@@ -191,8 +204,9 @@ def demo():
 
         #
         # Print the final asset holdings
-        print_asset_holding(indexer_client, user_addr, created_nft_id)
-        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
+        print("[ 1 ] Final holdings")
+        print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
+        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
 
         climatecoins_to_burn = get_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
@@ -217,7 +231,7 @@ def demo():
         # print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
         print("[ 1 ] App's nft balance")
-        print_asset_holding(indexer_client, get_escrow_from_app(app_id), created_nft_id)
+        print_asset_holding(indexer_client, get_escrow_from_app(app_id), created_nft_id, "app - nft")
 
     except Exception as e:
         print(e)
@@ -231,8 +245,14 @@ def demo():
                 txn=ApplicationDeleteTxn(manager_addr, sp, app_id), signer=manager_signer
             )
         )
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=ApplicationDeleteTxn(manager_addr, sp, dump_app_id), signer=manager_signer
+            )
+        )
         atc.execute(client, 4)
         print(f"{app_id} was succesfully deleted")
+        print(f"{dump_app_id} was succesfully deleted")
 
 
 
@@ -254,7 +274,35 @@ def create_app(addr, pk):
     # Read in clear teal source && compile 
     clear_program = compile_program(client, get_clear())
 
-    global_schema = StateSchema(2, 2)
+    global_schema = StateSchema(4, 4)
+    local_schema = StateSchema(0, 0)
+
+    # Create the transaction
+    create_txn = ApplicationCreateTxn(addr, sp, 0, approval_program, clear_program, global_schema, local_schema)
+
+    # Sign it
+    signed_txn = create_txn.sign(pk)
+
+    # Ship it
+    txid = client.send_transaction(signed_txn)
+
+    # Wait for the result so we can return the app id
+    result = wait_for_confirmation(client, txid)
+
+    return result['application-index']
+
+
+def create_dump_app(addr, pk):
+    # Get suggested params from network 
+    sp = client.suggested_params()
+
+    # Read in approval teal source && compile
+    approval_program = compile_program(client, get_dump_approval())
+
+    # Read in clear teal source && compile 
+    clear_program = compile_program(client, get_dump_clear())
+
+    global_schema = StateSchema(1,0)
     local_schema = StateSchema(0, 0)
 
     # Create the transaction

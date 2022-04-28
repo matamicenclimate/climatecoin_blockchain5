@@ -23,12 +23,12 @@ def wait_for_confirmation(client, txid):
     return txinfo
 
 
-def print_asset_holding(myindexer, account, assetid):
+def print_asset_holding(myindexer, account, assetid, label):
     response = myindexer.asset_balances(asset_id = assetid)
 
     for balance in response["balances"]:
         if balance["address"] == account:
-            print(f"account {account}; asset {assetid}; balance: {balance['amount']}")
+            print(f"account {account} - {label}; asset {assetid}; balance: {balance['amount']}")
             break
 
 def get_asset_holding(myindexer, account, assetid):
@@ -41,7 +41,7 @@ def get_asset_holding(myindexer, account, assetid):
 
 def get_asset_supply(myindexer, assetid):
     response = myindexer.asset_info(asset_id = assetid)
-    # print(response)
+    print(response)
     return response["asset"]["params"]["total"]
 
 def get_dummy_metadata():

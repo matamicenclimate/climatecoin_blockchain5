@@ -14,7 +14,8 @@ NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
 ORACLE_ADDRESS=Bytes('oracle_address')
 CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 MINT_FEE=Bytes('nft_mint_fee')
-DUMP_ADDRESS=Bytes('dump_address')
+TOTAL_COINS_BURNED=Bytes('total_coins_burned')
+DUMP_APP_ID=Bytes('dump_app_id')
 
 
 create_selector = MethodSignature(
@@ -32,6 +33,10 @@ def create_nft():
     normalize_total = Div(total, multiplier)
     normalize_fee = div_ceil(fee, multiplier)
 
+    dump_address = Sha512_256(
+        Concat(Bytes("appID"), App.globalGet(DUMP_APP_ID))
+    )
+
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -42,7 +47,7 @@ def create_nft():
                 TxnField.config_asset_total: normalize_fee,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: App.globalGet(DUMP_ADDRESS),
+                TxnField.config_asset_reserve: dump_address,
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
@@ -50,7 +55,6 @@ def create_nft():
             }
         ),
         InnerTxnBuilder.Submit(),
-
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
@@ -60,7 +64,7 @@ def create_nft():
                 TxnField.config_asset_total: normalize_total,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: App.globalGet(DUMP_ADDRESS),
+                TxnField.config_asset_reserve: dump_address,
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
@@ -124,7 +128,8 @@ def swap_nft_to_fungible():
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(3),
             asset_id == transfer_tx.xfer_asset(),
-            asset_minter.value() == Global.current_application_address()
+            # not working?
+            # asset_minter.value() == Global.current_application_address()
         ))
 
     return Seq(
@@ -169,8 +174,12 @@ def burn_climatecoins():
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(2),
-            Len(App.globalGet(DUMP_ADDRESS)) != Int(0)
+            Len(App.globalGet(DUMP_APP_ID)) != Int(0)
         ))
+
+    dump_address = Sha512_256(
+        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
+    )
 
     return Seq(
         valid_burn,
@@ -183,7 +192,7 @@ def burn_climatecoins():
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_id,
                 TxnField.asset_amount: transfer_tx.asset_amount(),
-                TxnField.asset_receiver: App.globalGet(DUMP_ADDRESS),
+                TxnField.asset_receiver: dump_address,
             }
         ),
         InnerTxnBuilder.Submit(),
@@ -243,12 +252,12 @@ def set_fee():
     )
 
 set_dump_selector = MethodSignature(
-    "set_dump(address)address"
+    "set_dump(uint64)address"
 )
 @Subroutine(TealType.uint64)
 def set_dump():
     return Seq(
-        App.globalPut(DUMP_ADDRESS, Txn.application_args[1]),
+        App.globalPut(DUMP_APP_ID, Txn.application_args[1]),
         Log(Concat(return_prefix, Txn.application_args[1])),
         Int(1)
     )
@@ -284,6 +293,8 @@ def contract():
     def initialize_vault():
         return Seq(
             App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
+            App.globalPut(DUMP_APP_ID, Int(0)),
+            App.globalPut(TOTAL_COINS_BURNED, Int(0)),
             App.globalPut(MINT_FEE, Int(5)),            
             Int(1)
         )
@@ -317,19 +328,7 @@ def contract():
 
 def clear():
     return Return(
-        Seq(
-            InnerTxnBuilder.Begin(),
-            InnerTxnBuilder.SetFields(
-                {
-                    TxnField.type_enum: TxnType.Payment,
-                    TxnField.receiver: Global.current_application_address(),
-                    TxnField.rekey_to: App.globalGet(DUMP_ADDRESS),
-                    TxnField.sender: Global.current_application_address()
-                }
-            ),
-            InnerTxnBuilder.Submit(),
-            Int(1)
-        )
+        Int(1)
     )
 
 

@@ -26,8 +26,8 @@
     },
     {
       "name": "set_dump",
-      "desc": "sets the dumping address for the minted NFTSs",
-      "args": [{ "name": "dump_address", "type": "address" }],
+      "desc": "sets the dumping app id for the minted NFTSs",
+      "args": [{ "name": "dump_app_id", "type": "uint64" }],
       "returns": { "type": "address" }
     },
     {
