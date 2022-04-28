@@ -117,12 +117,12 @@ def demo():
         )
         atc.execute(client, 2)
 
+        sp = client.suggested_params()
         #
         # Mint  some nfts
         print("[ 0 ] mint an NFT")
-        sp = client.suggested_params()
-        sp.fee = sp.min_fee * 3
         atc = AtomicTransactionComposer()
+        sp.fee = sp.min_fee * 3
         # Dummy metadata
         metadata_json, encoded = get_dummy_metadata()
         nft_total_supply = 250
@@ -134,6 +134,8 @@ def demo():
         created_nft_id = results.abi_results[0].return_value
         print("Created nft {}".format(created_nft_id))
 
+        #
+        # User opts-in to the NFT
         print("[ 1 ] User optin to NFT")
         sp = client.suggested_params()
         atc = AtomicTransactionComposer()

@@ -58,6 +58,22 @@ def create_nft():
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: App.globalGet(DUMP_APP_ID),
+                # Pass the selector as the first arg to trigger the `echo` method
+                TxnField.application_args: [
+                    do_optin_selector, 
+                    Itob(Int(0)) # first item in assets array
+                ],
+                TxnField.assets: [InnerTxn.created_asset_id()],
+                # Set fee to 0 so caller has to cover it
+                TxnField.fee: Int(0),
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
                 TxnField.config_asset_unit_name: Bytes("CO2"),
