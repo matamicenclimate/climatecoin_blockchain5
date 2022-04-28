@@ -156,15 +156,6 @@ def demo():
         atc.execute(client, 2)
         print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
 
-        print("[ 1 ] Dump optin to NFT")
-        # atc = AtomicTransactionComposer()
-        # atc.add_transaction(
-        #     TransactionWithSigner(
-        #         txn=AssetTransferTxn(dump_addr, sp, dump_addr, 0, created_nft_id), signer=dump_signer
-        #     )
-        # )
-        # atc.execute(client, 2)
-
         #
         # Print the initial asset holdings
         print("[ 1 ] Initial holdings")
