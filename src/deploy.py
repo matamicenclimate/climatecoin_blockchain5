@@ -38,10 +38,6 @@ def get_method(i: Interface, name: str) -> Method:
     raise Exception("No method with the name {}".format(name))
 
 
-def get_escrow_from_app(app_id):
-    return encode_address(checksum(b"appID" + (app_id).to_bytes(8, "big")))
-
-
 def demo():
     # Create acct
     # manager_pk = mnemonic.to_private_key(deployer_mnemonic)
@@ -64,11 +60,11 @@ def demo():
 
     #
     # Create app
-    app_id = create_app(manager_addr, manager_pk)
-    print("Created App with id: {}".format(app_id))
+    vault_app_id = create_app(manager_addr, manager_pk)
+    print("Created App with id: {}".format(vault_app_id))
 
-    app_addr = logic.get_application_address(app_id)
-    print("Application Address: {}".format(app_addr))
+    vault_app_addr = logic.get_application_address(vault_app_id)
+    print("Application Address: {}".format(vault_app_addr))
 
     dump_app_id = create_dump_app(manager_addr, manager_pk)
     print("Created App with id: {}".format(dump_app_id))
@@ -87,15 +83,21 @@ def demo():
         # cover for the 2 innerTxns
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, get_escrow_from_app(app_id), util.algos_to_microalgos(1), None),
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(1), None),
+                signer=manager_signer
+            )
+        )
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(1), None),
                 signer=manager_signer
             )
         )
 
-        atc.add_method_call(app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
-        atc.add_method_call(app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
+        atc.add_method_call(vault_app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
+        atc.add_method_call(vault_app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
                             [manager_addr])
-        atc.add_method_call(app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
+        atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
         # atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
 
@@ -135,7 +137,7 @@ def demo():
         metadata_json, encoded = get_dummy_metadata()
         nft_total_supply = 250
 
-        atc.add_method_call(app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
+        atc.add_method_call(vault_app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
                             [nft_total_supply, dump_addr], note=metadata_json.encode())
         results = atc.execute(client, 2)
 
@@ -160,12 +162,12 @@ def demo():
         print(tokens_to_move)
         atc = AtomicTransactionComposer()
         atc.add_method_call(
-            app_id,
+            vault_app_id,
             get_method(iface, "move"),
             manager_addr,
             sp,
             manager_signer,
-            [created_nft_id, get_escrow_from_app(app_id), user_addr, tokens_to_move],
+            [created_nft_id, vault_app_addr, user_addr, tokens_to_move],
         )
         atc.execute(client, 2)
         print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
@@ -190,14 +192,14 @@ def demo():
         print("[ 1 ] User swaps the asset")
         atc = AtomicTransactionComposer()
         # add random nonce in note so we can send identicall txns
-        atc.add_method_call(app_id, get_method(iface, "unfreeze_nft"), user_addr, sp, user_signer,
+        atc.add_method_call(vault_app_id, get_method(iface, "unfreeze_nft"), user_addr, sp, user_signer,
                             [created_nft_id], note=os.urandom(1))
         atc.add_transaction(
             TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, get_escrow_from_app(app_id), tokens_to_move, created_nft_id), signer=user_signer
+                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, tokens_to_move, created_nft_id), signer=user_signer
             )
         )
-        atc.add_method_call(app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
+        atc.add_method_call(vault_app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
                             [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
         atc.build_group()
         atc.execute(client, 4)
@@ -231,7 +233,7 @@ def demo():
         # print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
         print("[ 1 ] App's nft balance")
-        print_asset_holding(indexer_client, get_escrow_from_app(app_id), created_nft_id, "app - nft")
+        print_asset_holding(indexer_client, vault_app_addr, created_nft_id, "app - nft")
 
     except Exception as e:
         print(e)
@@ -242,7 +244,7 @@ def demo():
         atc = AtomicTransactionComposer()
         atc.add_transaction(
             TransactionWithSigner(
-                txn=ApplicationDeleteTxn(manager_addr, sp, app_id), signer=manager_signer
+                txn=ApplicationDeleteTxn(manager_addr, sp, vault_app_id), signer=manager_signer
             )
         )
         atc.add_transaction(
@@ -251,7 +253,7 @@ def demo():
             )
         )
         atc.execute(client, 4)
-        print(f"{app_id} was succesfully deleted")
+        print(f"{vault_app_id} was succesfully deleted")
         print(f"{dump_app_id} was succesfully deleted")
 
 
