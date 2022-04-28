@@ -54,10 +54,6 @@ def demo():
     user_signer = AccountTransactionSigner(user_pk)
     print("Using {}".format(user_addr))
 
-    dump_addr, dump_pk = get_accounts()[2]
-    dump_signer = AccountTransactionSigner(dump_pk)
-    print("Using {}".format(dump_addr))
-
     #
     # Create app
     vault_app_id = create_app(manager_addr, manager_pk)
@@ -99,23 +95,11 @@ def demo():
                             [manager_addr])
         atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
-        # atc.add_method_call(app_id, get_method(iface, "set_oracle_address"), addr, sp, addr_signer, [oracle_addr])
 
         result = atc.execute(client, 4)
         for res in result.abi_results:
             print(res.return_value)
         climatecoin_asa_id = result.abi_results[0].return_value
-
-        #
-        # Rekey dump to smart contract so that we can perform opt-ins from the SC
-        # print("[ 0 ] rekeying dump to smart contract")
-        # atc = AtomicTransactionComposer()
-        # atc.add_transaction(
-        #     TransactionWithSigner(
-        #         txn=PaymentTxn(dump_addr, sp, dump_addr, 0, rekey_to=get_escrow_from_app(app_id)), signer=dump_signer
-        #     )
-        # )
-        # atc.execute(client, 2) 
 
         #
         # Optin to climatecoin
@@ -138,7 +122,7 @@ def demo():
         nft_total_supply = 250
 
         atc.add_method_call(vault_app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
-                            [nft_total_supply, dump_addr], note=metadata_json.encode())
+                            [nft_total_supply, dump_app_addr], note=metadata_json.encode())
         results = atc.execute(client, 2)
 
         created_nft_id = results.abi_results[0].return_value
@@ -211,26 +195,6 @@ def demo():
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
 
         climatecoins_to_burn = get_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
-
-        #
-        # Burn the climatecoins
-        # atc = AtomicTransactionComposer()
-        # print(f"[ 1 ] User burns the Climatecoins {climatecoins_to_burn}")
-        # # add random nonce in note so we can send identicall txns
-        # atc.add_transaction(
-        #     TransactionWithSigner(
-        #         txn=AssetTransferTxn(user_addr, sp, get_escrow_from_app(app_id), climatecoins_to_burn, climatecoin_asa_id),
-        #         signer=user_signer
-        #     )
-        # )
-        # # TODO:
-        # # call the burn method with the list of NFT's that will be sent to the burn address
-        # atc.add_method_call(app_id, get_method(iface, "burn_climatecoins"), manager_addr, sp, manager_signer,
-        #                     [created_nft_id], accounts=[dump_addr], note=os.urandom(1))
-        # atc.build_group()
-        # atc.execute(client, 4)
-        # print_asset_holding(indexer_client, user_addr, created_nft_id)
-        # print_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
         print("[ 1 ] App's nft balance")
         print_asset_holding(indexer_client, vault_app_addr, created_nft_id, "app - nft")
