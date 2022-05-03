@@ -19,7 +19,7 @@ DUMP_APP_ID=Bytes('dump_app_id')
 
 
 create_selector = MethodSignature(
-    "create_nft(uint64,application)uint64"
+    "create_nft(uint64,application,account)uint64"
 )
 @Subroutine(TealType.uint64)
 def create_nft():
@@ -104,6 +104,15 @@ def create_nft():
                 TxnField.fee: Int(0),
             }
         ),
+        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetFreeze,
+                TxnField.freeze_asset: InnerTxn.created_asset_id(),
+                TxnField.freeze_asset_frozen: Int(0),
+                TxnField.freeze_asset_account: dump_address,
+            }
+        ),
         InnerTxnBuilder.Submit(),
         Int(1),
     )
@@ -114,7 +123,9 @@ unfreeze_nft_selector = MethodSignature(
 @Subroutine(TealType.uint64)
 def unfreeze_nft():
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
-
+    dump_address = Sha512_256(
+        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
+    )
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -182,7 +193,7 @@ def burn_parameters():
     )
 
 burn_climatecoins_selector = MethodSignature(
-    "burn_climatecoins(asset)void"
+    "burn_climatecoins(asset)uint64"
 )
 @Subroutine(TealType.uint64)
 def burn_climatecoins():
@@ -194,12 +205,14 @@ def burn_climatecoins():
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(2),
-            Len(App.globalGet(DUMP_APP_ID)) != Int(0)
+            # Len(App.globalGet(DUMP_APP_ID)) != Int(0)
         ))
 
     dump_address = Sha512_256(
         Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
     )
+
+    total_coins_burned = Add(App.globalGet(TOTAL_COINS_BURNED), transfer_tx.asset_amount())
 
     return Seq(
         valid_burn,
@@ -216,6 +229,10 @@ def burn_climatecoins():
             }
         ),
         InnerTxnBuilder.Submit(),
+        # log the total before we update the global value
+        Log(Concat(return_prefix, Itob(total_coins_burned))),
+        # update the global value
+        App.globalPut(TOTAL_COINS_BURNED, total_coins_burned),
         Int(1)
     )
 

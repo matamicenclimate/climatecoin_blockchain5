@@ -41,7 +41,8 @@
       "desc": "Create an nft with appropriate parameters, return its id",
       "args": [
         { "name": "total_supply", "type": "uint64" },
-        { "name": "dump_app_id", "type": "application" }
+        { "name": "dump_app_id", "type": "application" },
+        { "name": "dump_app_address", "type": "account" }
       ],
       "returns": { "name": "developer-nft-id", "type": "uint64" }
     },
@@ -55,13 +56,13 @@
       "name": "burn_parameters",
       "desc": "Burn climatecoins to compensate the emissions from an asset",
       "args": [{ "name": "compensating_asset", "type": "asset" }],
-      "returns": { "type": "void" }
+      "returns": { "type": "uint64" }
     },
     {
       "name": "burn_climatecoins",
       "desc": "burn the climatecoins",
       "args": [{ "name": "asset", "type": "asset" }],
-      "returns": { "type": "void" }
+      "returns": { "type": "uint64" }
     },
     {
       "name": "move",

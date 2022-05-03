@@ -128,7 +128,7 @@ def demo():
         nft_total_supply = 250
 
         atc.add_method_call(vault_app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
-                            [nft_total_supply, dump_app_id], note=metadata_json.encode())
+                            [nft_total_supply, dump_app_id, dump_app_addr], note=metadata_json.encode())
         results = atc.execute(client, 2)
 
         created_nft_id = results.abi_results[0].return_value
@@ -145,7 +145,9 @@ def demo():
                 txn=AssetTransferTxn(user_addr, sp, user_addr, 0, created_nft_id), signer=user_signer
             )
         )
-        atc.execute(client, 2)
+        result = atc.execute(client, 4)
+        for res in result.abi_results:
+            print(res.return_value)
 
         #
         # Move the NFT to the users waller
@@ -161,7 +163,9 @@ def demo():
             manager_signer,
             [created_nft_id, vault_app_addr, user_addr, tokens_to_move],
         )
-        atc.execute(client, 2)
+        result = atc.execute(client, 4)
+        for res in result.abi_results:
+            print(res.return_value)
         print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
 
         #
@@ -195,8 +199,27 @@ def demo():
 
         climatecoins_to_burn = get_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
-        print("[ 1 ] App's nft balance")
+        print("[ 1 ] Burn the climatecoins")
+        atc = AtomicTransactionComposer()
+        # add random nonce in note so we can send identicall txns
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn, climatecoin_asa_id), signer=user_signer
+            )
+        )
+        atc.add_method_call(vault_app_id, get_method(iface, "burn_climatecoins"), user_addr, sp, user_signer,
+                            [created_nft_id], accounts=[dump_app_addr], note=os.urandom(1))
+        atc.build_group()
+        result = atc.execute(client, 4)
+        for res in result.abi_results:
+            print(res.return_value)
+
+        print("[ 1 ] Final balances")
+        print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
+        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
         print_asset_holding(indexer_client, vault_app_addr, created_nft_id, "app - nft")
+        print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
+        print_asset_holding(indexer_client, dump_app_addr, created_nft_id, "dump - nft")
 
     except Exception as e:
         print(e)
