@@ -1,0 +1,22 @@
+{
+  "name": "climatecoin_dump_arc4",
+  "networks": {
+    "testnet": {
+      "appID": 0
+    }
+  },
+  "methods": [
+    {
+      "name": "do_optin",
+      "desc": "optin app into asset. ONLY callable by the vault_app",
+      "args": [{ "name": "asset_id", "type": "asset" }],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "set_vault_app",
+      "desc": "sets the vaults app id",
+      "args": [{ "name": "vault_app_id", "type": "uint64" }],
+      "returns": { "type": "void" }
+    }
+  ]
+}

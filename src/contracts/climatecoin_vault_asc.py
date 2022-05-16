@@ -4,7 +4,7 @@
 from pyteal import *
 
 from src.pyteal_utils import ensure_opted_in, clawback_asset, div_ceil
-
+from src.contracts.climatecoin_dump_asc import do_optin_selector
 TEAL_VERSION = 6
 
 return_prefix = Bytes("base16", "0x151f7c75")  # Literally hash('return')[:4]
@@ -14,11 +14,12 @@ NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
 ORACLE_ADDRESS=Bytes('oracle_address')
 CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
 MINT_FEE=Bytes('nft_mint_fee')
-DUMP_ADDRESS=Bytes('dump_address')
+TOTAL_COINS_BURNED=Bytes('total_coins_burned')
+DUMP_APP_ID=Bytes('dump_app_id')
 
 
 create_selector = MethodSignature(
-    "create_nft(uint64)uint64"
+    "create_nft(uint64,application,account)uint64"
 )
 @Subroutine(TealType.uint64)
 def create_nft():
@@ -32,7 +33,10 @@ def create_nft():
     normalize_total = Div(total, multiplier)
     normalize_fee = div_ceil(fee, multiplier)
 
-    created_asa_id = ScratchVar()
+    dump_address = Sha512_256(
+        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
+    )
+
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -43,23 +47,31 @@ def create_nft():
                 TxnField.config_asset_total: normalize_fee,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: App.globalGet(DUMP_ADDRESS),
+                TxnField.config_asset_reserve: dump_address,
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
                 TxnField.note: Txn.note()
             }
         ),
-        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.Submit(),
+        InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
-                TxnField.type_enum: TxnType.AssetFreeze,
-                TxnField.freeze_asset: InnerTxn.created_asset_id(),
-                TxnField.freeze_asset_frozen: Int(0),
-                TxnField.freeze_asset_account: App.globalGet(DUMP_ADDRESS),
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: App.globalGet(DUMP_APP_ID),
+                # Pass the selector as the first arg to trigger the `echo` method
+                TxnField.application_args: [
+                    do_optin_selector, 
+                    Itob(Int(0)) # first item in assets array
+                ],
+                TxnField.assets: [InnerTxn.created_asset_id()],
+                # Set fee to 0 so caller has to cover it
+                TxnField.fee: Int(0),
             }
         ),
-        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.Submit(),
+        InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetConfig,
@@ -68,25 +80,40 @@ def create_nft():
                 TxnField.config_asset_total: normalize_total,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: App.globalGet(DUMP_ADDRESS),
+                TxnField.config_asset_reserve: dump_address,
                 TxnField.config_asset_freeze: Global.current_application_address(),
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
                 TxnField.note: Txn.note()
             }
         ),
-        created_asa_id.store(InnerTxn.created_asset_id()),
-        # InnerTxnBuilder.Next(),
-        # InnerTxnBuilder.SetFields(
-        #     {
-        #         TxnField.type_enum: TxnType.AssetFreeze,
-        #         TxnField.freeze_asset: InnerTxn.created_asset_id(),
-        #         TxnField.freeze_asset_frozen: Int(0),
-        #         TxnField.freeze_asset_account: App.globalGet(DUMP_ADDRESS),
-        #     }
-        # ),
         InnerTxnBuilder.Submit(),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: App.globalGet(DUMP_APP_ID),
+                # Pass the selector as the first arg to trigger the `echo` method
+                TxnField.application_args: [
+                    do_optin_selector, 
+                    Itob(Int(0)) # first item in assets array
+                ],
+                TxnField.assets: [InnerTxn.created_asset_id()],
+                # Set fee to 0 so caller has to cover it
+                TxnField.fee: Int(0),
+            }
+        ),
+        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetFreeze,
+                TxnField.freeze_asset: InnerTxn.created_asset_id(),
+                TxnField.freeze_asset_frozen: Int(0),
+                TxnField.freeze_asset_account: dump_address,
+            }
+        ),
+        InnerTxnBuilder.Submit(),
         Int(1),
     )
 
@@ -96,7 +123,9 @@ unfreeze_nft_selector = MethodSignature(
 @Subroutine(TealType.uint64)
 def unfreeze_nft():
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
-
+    dump_address = Sha512_256(
+        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
+    )
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -118,17 +147,24 @@ swap_nft_to_fungible_selector = MethodSignature(
 def swap_nft_to_fungible():
     transfer_tx = Gtxn[1]
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
+    # ensure we are swapping an NFT fully
     asset_supply = AssetParam.total(transfer_tx.xfer_asset()).value()
+    # ensure the NFT was minted by the contract
+    asset_minter = AssetParam.creator(transfer_tx.xfer_asset())
     valid_swap = Assert(
         And(
+            # no funny stuff
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(3),
             asset_id == transfer_tx.xfer_asset(),
+            # not working?
+            asset_minter.value() == Global.current_application_address()
         ))
 
     return Seq(
+        asset_minter,
         valid_swap,
         ensure_opted_in(asset_id),
         # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
@@ -157,23 +193,29 @@ def burn_parameters():
     )
 
 burn_climatecoins_selector = MethodSignature(
-    "burn_climatecoins(asset)void"
+    "burn_climatecoins(asset)uint64"
 )
 @Subroutine(TealType.uint64)
 def burn_climatecoins():
     transfer_tx = Gtxn[0]
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
-    valid_swap = Assert(
+    valid_burn = Assert(
         And(
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(2),
-            Len(App.globalGet(DUMP_ADDRESS)) != Int(0)
+            # Len(App.globalGet(DUMP_APP_ID)) != Int(0)
         ))
 
+    dump_address = Sha512_256(
+        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
+    )
+
+    total_coins_burned = Add(App.globalGet(TOTAL_COINS_BURNED), transfer_tx.asset_amount())
+
     return Seq(
-        valid_swap,
+        valid_burn,
         # ensure_opted_in(asset_id),
         # # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
         # # clawback_asset(asset_id, Txn.sender()),
@@ -183,10 +225,14 @@ def burn_climatecoins():
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_id,
                 TxnField.asset_amount: transfer_tx.asset_amount(),
-                TxnField.asset_receiver: App.globalGet(DUMP_ADDRESS),
+                TxnField.asset_receiver: dump_address,
             }
         ),
         InnerTxnBuilder.Submit(),
+        # log the total before we update the global value
+        Log(Concat(return_prefix, Itob(total_coins_burned))),
+        # update the global value
+        App.globalPut(TOTAL_COINS_BURNED, total_coins_burned),
         Int(1)
     )
 
@@ -243,12 +289,12 @@ def set_fee():
     )
 
 set_dump_selector = MethodSignature(
-    "set_dump(address)address"
+    "set_dump(uint64)address"
 )
 @Subroutine(TealType.uint64)
 def set_dump():
     return Seq(
-        App.globalPut(DUMP_ADDRESS, Txn.application_args[1]),
+        App.globalPut(DUMP_APP_ID, Btoi(Txn.application_args[1])),
         Log(Concat(return_prefix, Txn.application_args[1])),
         Int(1)
     )
@@ -284,6 +330,8 @@ def contract():
     def initialize_vault():
         return Seq(
             App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
+            App.globalPut(DUMP_APP_ID, Int(0)),
+            App.globalPut(TOTAL_COINS_BURNED, Int(0)),
             App.globalPut(MINT_FEE, Int(5)),            
             Int(1)
         )
@@ -305,7 +353,7 @@ def contract():
     return Cond(
         #  handle app creation
         [Txn.application_id() == Int(0), Return(initialize_vault())],
-        #  allow all to opt-in and close-out
+        #  disallow all to opt-in and close-out
         [Txn.on_completion() == OnComplete.OptIn, Reject()],
         [Txn.on_completion() == OnComplete.CloseOut, Reject()],
         #  allow creator to update and delete app
@@ -316,7 +364,9 @@ def contract():
 
 
 def clear():
-    return Approve()
+    return Return(
+        Int(1)
+    )
 
 
 def get_approval():

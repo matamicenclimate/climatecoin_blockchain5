@@ -8,13 +8,13 @@
   "methods": [
     {
       "name": "mint_climatecoin",
-      "desc": "mints climatecoins",
+      "desc": "mints the climatecoin asa. CAN only be executed ONCE by the contract deployer.",
       "args": [],
       "returns": { "type": "uint64" }
     },
     {
       "name": "set_minter_address",
-      "desc": "sets the nft minter address",
+      "desc": "sets the nft minter address. In case we use a differente asa NOT minted by the contract.",
       "args": [{ "name": "minter_address", "type": "address" }],
       "returns": { "type": "address" }
     },
@@ -26,8 +26,8 @@
     },
     {
       "name": "set_dump",
-      "desc": "sets the dumping address",
-      "args": [{ "name": "dump_address", "type": "address" }],
+      "desc": "sets the dumping app id for the minted NFTSs",
+      "args": [{ "name": "dump_app_id", "type": "uint64" }],
       "returns": { "type": "address" }
     },
     {
@@ -39,32 +39,36 @@
     {
       "name": "create_nft",
       "desc": "Create an nft with appropriate parameters, return its id",
-      "args": [{ "name": "total_supply", "type": "uint64" }],
+      "args": [
+        { "name": "total_supply", "type": "uint64" },
+        { "name": "dump_app_id", "type": "application" },
+        { "name": "dump_app_address", "type": "account" }
+      ],
       "returns": { "name": "developer-nft-id", "type": "uint64" }
     },
     {
       "name": "unfreeze_nft",
       "desc": "Create an nft with appropriate parameters, return its id",
-      "args": [{ "name": "royalty_asset", "type": "asset" }],
+      "args": [{ "name": "asset", "type": "asset" }],
       "returns": { "type": "void" }
     },
     {
       "name": "burn_parameters",
       "desc": "Burn climatecoins to compensate the emissions from an asset",
       "args": [{ "name": "compensating_asset", "type": "asset" }],
-      "returns": { "type": "void" }
+      "returns": { "type": "uint64" }
     },
     {
       "name": "burn_climatecoins",
       "desc": "burn the climatecoins",
       "args": [{ "name": "asset", "type": "asset" }],
-      "returns": { "type": "void" }
+      "returns": { "type": "uint64" }
     },
     {
       "name": "move",
       "desc": "Moves the asset passed from one account to another",
       "args": [
-        { "name": "royalty_asset", "type": "asset" },
+        { "name": "asset", "type": "asset" },
         { "name": "from", "type": "account" },
         { "name": "to", "type": "account" },
         { "name": "amount", "type": "uint64" }
