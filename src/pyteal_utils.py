@@ -39,6 +39,17 @@ def aoptin(reciever, aid):
     )
 
 @Subroutine(TealType.uint64)
+def max(a, b) -> Expr:
+    """max returns the max of 2 integers"""
+    return If(a > b, a, b)
+
+
+@Subroutine(TealType.uint64)
+def min(a, b) -> Expr:
+    """min returns the min of 2 integers"""
+    return If(a < b, a, b)
+
+@Subroutine(TealType.uint64)
 def div_ceil(a, b) -> Expr:
     """Returns the result of division rounded up to the next integer
     Args:

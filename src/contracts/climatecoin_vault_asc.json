@@ -61,7 +61,7 @@
     {
       "name": "burn_climatecoins",
       "desc": "burn the climatecoins",
-      "args": [{ "name": "asset", "type": "asset" }],
+      "args": [],
       "returns": { "type": "uint64" }
     },
     {

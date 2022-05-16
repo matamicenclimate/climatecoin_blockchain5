@@ -5,7 +5,7 @@ from algosdk.future.transaction import *
 from algosdk.atomic_transaction_composer import *
 from algosdk.abi import *
 from algosdk.encoding import checksum, encode_address
-from algosdk import util
+from algosdk import util, mnemonic
 
 from sandbox import get_accounts
 from src.contracts.climatecoin_dump_asc import get_dump_approval, get_dump_clear
@@ -94,8 +94,8 @@ def demo():
         )
 
         atc.add_method_call(vault_app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
-        atc.add_method_call(vault_app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
-                            [manager_addr])
+        # atc.add_method_call(vault_app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
+        #                     [manager_addr])
         atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
         atc.add_method_call(dump_app_id, get_method(dump_iface, "set_vault_app"), manager_addr, sp, manager_signer,
@@ -117,109 +117,116 @@ def demo():
         )
         atc.execute(client, 2)
 
-        sp = client.suggested_params()
-        #
-        # Mint  some nfts
-        print("[ 0 ] mint an NFT")
-        atc = AtomicTransactionComposer()
-        sp.fee = sp.min_fee * 3
-        # Dummy metadata
-        metadata_json, encoded = get_dummy_metadata()
-        nft_total_supply = 250
+        minted_nfts = []
+        for iter in [0, 1]:
+            sp = client.suggested_params()
+            #
+            # Mint  some nfts
+            print(f"[ {iter} ] mint an NFT", )
+            atc = AtomicTransactionComposer()
+            sp.fee = sp.min_fee * 3
+            # Dummy metadata
+            metadata_json, encoded = get_dummy_metadata()
+            nft_total_supply = 250
 
-        atc.add_method_call(vault_app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
-                            [nft_total_supply, dump_app_id, dump_app_addr], note=metadata_json.encode())
-        results = atc.execute(client, 2)
+            atc.add_method_call(vault_app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
+                                [nft_total_supply, dump_app_id, dump_app_addr], note=metadata_json.encode(), )
+            results = atc.execute(client, 2)
 
-        created_nft_id = results.abi_results[0].return_value
-        print("Created nft {}".format(created_nft_id))
-
-        #
-        # User opts-in to the NFT
-        print("[ 1 ] User optin to NFT")
-        sp = client.suggested_params()
-        atc = AtomicTransactionComposer()
-        # Optin to the created NFT
-        atc.add_transaction(
-            TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, created_nft_id), signer=user_signer
+            created_nft_id = results.abi_results[0].return_value
+            print("Created nft {}".format(created_nft_id))
+            minted_nfts.append(created_nft_id)
+            #
+            # User opts-in to the NFT
+            print(f"[ {iter} ] User optin to NFT")
+            sp = client.suggested_params()
+            atc = AtomicTransactionComposer()
+            # Optin to the created NFT
+            atc.add_transaction(
+                TransactionWithSigner(
+                    txn=AssetTransferTxn(user_addr, sp, user_addr, 0, created_nft_id), signer=user_signer
+                )
             )
-        )
-        result = atc.execute(client, 4)
-        for res in result.abi_results:
-            print(res.return_value)
+            result = atc.execute(client, 4)
+            for res in result.abi_results:
+                print(res.return_value)
 
-        #
-        # Move the NFT to the users waller
-        print("[ 1 ] Manager calling move method")
-        tokens_to_move = get_asset_supply(indexer_client, created_nft_id)
-        print(tokens_to_move)
-        atc = AtomicTransactionComposer()
-        atc.add_method_call(
-            vault_app_id,
-            get_method(iface, "move"),
-            manager_addr,
-            sp,
-            manager_signer,
-            [created_nft_id, vault_app_addr, user_addr, tokens_to_move],
-        )
-        result = atc.execute(client, 4)
-        for res in result.abi_results:
-            print(res.return_value)
-        print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
-
-        #
-        # Print the initial asset holdings
-        print("[ 1 ] Initial holdings")
-        print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
-        print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
-
-        #
-        # Swap them
-        print("[ 1 ] User swaps the asset")
-        atc = AtomicTransactionComposer()
-        # add random nonce in note so we can send identicall txns
-        atc.add_method_call(vault_app_id, get_method(iface, "unfreeze_nft"), user_addr, sp, user_signer,
-                            [created_nft_id], note=os.urandom(1))
-        atc.add_transaction(
-            TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, tokens_to_move, created_nft_id), signer=user_signer
+            #
+            # Move the NFT to the users waller
+            print(f"[ {iter} ] Manager calling move method")
+            tokens_to_move = get_asset_supply(indexer_client, created_nft_id)
+            print(tokens_to_move)
+            atc = AtomicTransactionComposer()
+            atc.add_method_call(
+                vault_app_id,
+                get_method(iface, "move"),
+                manager_addr,
+                sp,
+                manager_signer,
+                [created_nft_id, vault_app_addr, user_addr, tokens_to_move],
             )
-        )
-        atc.add_method_call(vault_app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
-                            [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
-        atc.build_group()
-        atc.execute(client, 4)
+            result = atc.execute(client, 4)
+            for res in result.abi_results:
+                print(res.return_value)
+            print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
+
+            #
+            # Print the initial asset holdings
+            print(f"[ {iter} ] Initial holdings")
+            print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
+            print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
+
+            #
+            # Swap them
+            print(f"[ {iter} ] User swaps the asset")
+            atc = AtomicTransactionComposer()
+            # add random nonce in note so we can send identicall txns
+            atc.add_method_call(vault_app_id, get_method(iface, "unfreeze_nft"), user_addr, sp, user_signer,
+                                [created_nft_id], note=os.urandom(1))
+            atc.add_transaction(
+                TransactionWithSigner(
+                    txn=AssetTransferTxn(user_addr, sp, vault_app_addr, tokens_to_move, created_nft_id), signer=user_signer
+                )
+            )
+            atc.add_method_call(vault_app_id, get_method(iface, "swap_nft_to_fungible"), user_addr, sp, user_signer,
+                                [created_nft_id], foreign_assets=[climatecoin_asa_id], note=os.urandom(1))
+            atc.build_group()
+            atc.execute(client, 4)
 
         #
         # Print the final asset holdings
-        print("[ 1 ] Final holdings")
-        print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
+        print("[ 3 ] Final holdings")
+        for nft_id in minted_nfts:
+            print_asset_holding(indexer_client, user_addr, nft_id, "user - nft")
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
 
         climatecoins_to_burn = get_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
-        print("[ 1 ] Burn the climatecoins")
+        print("[ 3 ] Burn the climatecoins")
         atc = AtomicTransactionComposer()
         # add random nonce in note so we can send identicall txns
         atc.add_transaction(
             TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn, climatecoin_asa_id), signer=user_signer
+                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn - 100, climatecoin_asa_id), signer=user_signer
             )
         )
         atc.add_method_call(vault_app_id, get_method(iface, "burn_climatecoins"), user_addr, sp, user_signer,
-                            [created_nft_id], accounts=[dump_app_addr], note=os.urandom(1))
+                            accounts=[dump_app_addr], note=os.urandom(1), foreign_assets=minted_nfts)
         atc.build_group()
         result = atc.execute(client, 4)
         for res in result.abi_results:
             print(res.return_value)
 
-        print("[ 1 ] Final balances")
-        print_asset_holding(indexer_client, user_addr, created_nft_id, "user - nft")
+        print("[ 3 ] Final balances")
+        print(minted_nfts)
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
-        print_asset_holding(indexer_client, vault_app_addr, created_nft_id, "app - nft")
         print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
-        print_asset_holding(indexer_client, dump_app_addr, created_nft_id, "dump - nft")
+
+        for i in range(len(minted_nfts)):
+            nft_id = minted_nfts[i]
+            print_asset_holding(indexer_client, user_addr, nft_id, f'user - nft {i}')
+            print_asset_holding(indexer_client, vault_app_addr, nft_id, f"app - nft {i}")
+            print_asset_holding(indexer_client, dump_app_addr, nft_id, f"dump - nft {i}")
 
     except Exception as e:
         print(e)
