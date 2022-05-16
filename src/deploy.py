@@ -1,3 +1,4 @@
+import time
 from email.mime import application
 import os
 from algosdk.v2client import indexer
@@ -217,15 +218,16 @@ def demo():
         for res in result.abi_results:
             print(res.return_value)
 
-        print("[ 3 ] Final balances")
+        print("[ 3 ] Minted nft ids")
         print(minted_nfts)
+
+        print("[ 3 ] Final balances")
+        time.sleep(3)  # wait for the indexer to catch up
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
         print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
 
         for i in range(len(minted_nfts)):
             nft_id = minted_nfts[i]
-            print_asset_holding(indexer_client, user_addr, nft_id, f'user - nft {i}')
-            print_asset_holding(indexer_client, vault_app_addr, nft_id, f"app - nft {i}")
             print_asset_holding(indexer_client, dump_app_addr, nft_id, f"dump - nft {i}")
 
     except Exception as e:
