@@ -15,11 +15,22 @@ from src.contracts.climatecoin_vault_asc import get_approval, get_clear
 from src.utils import get_asset_supply, print_asset_holding, get_dummy_metadata, get_asset_holding
 from utils import compile_program, wait_for_confirmation
 
+#
+# Script config
+testnet = True
+delete_on_finish = True
+########################
+
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 url = "http://localhost:4001"
-# url = "https://node.testnet.algoexplorerapi.io"
+url_testnet = "https://node.testnet.algoexplorerapi.io"
 indexer_url = "http://localhost:8980"
-# indexer_url = "https://algoindexer.testnet.algoexplorerapi.io"
+indexer_url_testnet = "https://algoindexer.testnet.algoexplorerapi.io"
+
+if testnet:
+    url = url_testnet
+    indexer_url = indexer_url_testnet
+
 deployer_mnemonic = "light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
 random_user = "know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
 random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
@@ -43,18 +54,32 @@ def get_method(i: Interface, name: str) -> Method:
 
 
 def demo():
+    manager_addr = None
+    manager_pk = None
+    user_addr = None
+    user_pk = None
+
     # Create acct
-    # manager_pk = mnemonic.to_private_key(deployer_mnemonic)
-    # manager_addr = account.address_from_private_key(manager_pk)
-    manager_addr, manager_pk = get_accounts()[0]
+    if testnet:
+        manager_pk = mnemonic.to_private_key(deployer_mnemonic)
+        manager_addr = account.address_from_private_key(manager_pk)
+    else:
+        manager_add, manager_k = get_accounts()[0]
+        manager_addr = manager_add
+        manager_pk = manager_k
 
     manager_signer = AccountTransactionSigner(manager_pk)
     print("Using {}".format(manager_addr))
 
     # Create random user acct
-    # user_pk = mnemonic.to_private_key(random_user)
-    # user_addr = account.address_from_private_key(user_pk)
-    user_addr, user_pk = get_accounts()[1]
+    # Create acct
+    if testnet:
+        user_pk = mnemonic.to_private_key(random_user)
+        user_addr = account.address_from_private_key(user_pk)
+    else:
+        user_add, user_k = get_accounts()[1]
+        user_addr = user_add
+        user_pk = user_k
     user_signer = AccountTransactionSigner(user_pk)
     print("Using {}".format(user_addr))
 
@@ -237,22 +262,23 @@ def demo():
         print(e)
         
     finally:
-        #
-        # Delete app so we dont reach the limit of apps per account whilst testing
-        atc = AtomicTransactionComposer()
-        atc.add_transaction(
-            TransactionWithSigner(
-                txn=ApplicationDeleteTxn(manager_addr, sp, vault_app_id), signer=manager_signer
+        if delete_on_finish:
+            #
+            # Delete app so we dont reach the limit of apps per account whilst testing
+            atc = AtomicTransactionComposer()
+            atc.add_transaction(
+                TransactionWithSigner(
+                    txn=ApplicationDeleteTxn(manager_addr, sp, vault_app_id), signer=manager_signer
+                )
             )
-        )
-        atc.add_transaction(
-            TransactionWithSigner(
-                txn=ApplicationDeleteTxn(manager_addr, sp, dump_app_id), signer=manager_signer
+            atc.add_transaction(
+                TransactionWithSigner(
+                    txn=ApplicationDeleteTxn(manager_addr, sp, dump_app_id), signer=manager_signer
+                )
             )
-        )
-        atc.execute(client, 4)
-        print(f"{vault_app_id} was succesfully deleted")
-        print(f"{dump_app_id} was succesfully deleted")
+            atc.execute(client, 4)
+            print(f"{vault_app_id} was succesfully deleted")
+            print(f"{dump_app_id} was succesfully deleted")
 
 
 
