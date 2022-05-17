@@ -3,7 +3,7 @@
 
 from pyteal import *
 
-from src.pyteal_utils import ensure_opted_in, clawback_asset, div_ceil
+from src.pyteal_utils import ensure_opted_in, min, div_ceil
 from src.contracts.climatecoin_dump_asc import do_optin_selector
 TEAL_VERSION = 6
 
@@ -63,7 +63,7 @@ def create_nft():
                 # Pass the selector as the first arg to trigger the `echo` method
                 TxnField.application_args: [
                     do_optin_selector, 
-                    Itob(Int(0)) # first item in assets array
+                    Itob(Int(0))  # first item in assets array
                 ],
                 TxnField.assets: [InnerTxn.created_asset_id()],
                 # Set fee to 0 so caller has to cover it
@@ -97,7 +97,7 @@ def create_nft():
                 # Pass the selector as the first arg to trigger the `echo` method
                 TxnField.application_args: [
                     do_optin_selector, 
-                    Itob(Int(0)) # first item in assets array
+                    Itob(Int(0))  # first item in assets array
                 ],
                 TxnField.assets: [InnerTxn.created_asset_id()],
                 # Set fee to 0 so caller has to cover it
@@ -193,17 +193,17 @@ def burn_parameters():
     )
 
 burn_climatecoins_selector = MethodSignature(
-    "burn_climatecoins(asset)uint64"
+    "burn_climatecoins()uint64"
 )
 @Subroutine(TealType.uint64)
 def burn_climatecoins():
     transfer_tx = Gtxn[0]
-    asset_id = Txn.assets[Btoi(Txn.application_args[1])]
     valid_burn = Assert(
         And(
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
-            Txn.application_args.length() == Int(2),
+            # No params, we send all the asa_ids in the foreign_assets
+            Txn.application_args.length() == Int(1),
             Global.group_size() == Int(2),
             # Len(App.globalGet(DUMP_APP_ID)) != Int(0)
         ))
@@ -212,27 +212,40 @@ def burn_climatecoins():
         Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
     )
 
-    total_coins_burned = Add(App.globalGet(TOTAL_COINS_BURNED), transfer_tx.asset_amount())
+    coins_to_burn = transfer_tx.asset_amount()
+
+    total_co2_burned = ScratchVar(TealType.uint64)
+    amount_to_burn = ScratchVar(TealType.uint64)
+    i = ScratchVar(TealType.uint64)
 
     return Seq(
         valid_burn,
         # ensure_opted_in(asset_id),
-        # # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
-        # # clawback_asset(asset_id, Txn.sender()),
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetTransfer,
-                TxnField.xfer_asset: asset_id,
-                TxnField.asset_amount: transfer_tx.asset_amount(),
-                TxnField.asset_receiver: dump_address,
-            }
+        total_co2_burned.store(Int(0)),
+        For(i.store(Int(0)), i.load() < Txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
+            Seq(
+                InnerTxnBuilder.Begin(),
+                app_nft_balance := AssetHolding.balance(Global.current_application_address(), Txn.assets[i.load()]),
+                # get the minimum between the assetHoldings and the amountToBurn
+                amount_to_burn.store(min(app_nft_balance.value(), Minus(coins_to_burn, total_co2_burned.load()))),
+                # store it in the scratchVar
+                total_co2_burned.store(Add(total_co2_burned.load(), amount_to_burn.load())),
+                InnerTxnBuilder.SetFields(
+                    {
+                        TxnField.type_enum: TxnType.AssetTransfer,
+                        TxnField.xfer_asset: Txn.assets[i.load()],
+                        TxnField.asset_amount: amount_to_burn.load(),
+                        TxnField.asset_receiver: dump_address,
+                    }
+                ),
+                InnerTxnBuilder.Submit(),
+            )
         ),
-        InnerTxnBuilder.Submit(),
+        Assert(Eq(coins_to_burn, total_co2_burned.load())),
         # log the total before we update the global value
-        Log(Concat(return_prefix, Itob(total_coins_burned))),
+        Log(Concat(return_prefix, Itob(total_co2_burned.load()))),
         # update the global value
-        App.globalPut(TOTAL_COINS_BURNED, total_coins_burned),
+        App.globalPut(TOTAL_COINS_BURNED, Add(App.globalGet(TOTAL_COINS_BURNED), coins_to_burn)),
         Int(1)
     )
 
