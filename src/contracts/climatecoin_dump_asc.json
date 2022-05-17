@@ -2,7 +2,7 @@
   "name": "climatecoin_dump_arc4",
   "networks": {
     "testnet": {
-      "appID": 0
+      "appID": 89706240
     }
   },
   "methods": [

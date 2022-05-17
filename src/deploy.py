@@ -208,7 +208,7 @@ def demo():
         # add random nonce in note so we can send identicall txns
         atc.add_transaction(
             TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn - 100, climatecoin_asa_id), signer=user_signer
+                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, 100, climatecoin_asa_id), signer=user_signer
             )
         )
         atc.add_method_call(vault_app_id, get_method(iface, "burn_climatecoins"), user_addr, sp, user_signer,
