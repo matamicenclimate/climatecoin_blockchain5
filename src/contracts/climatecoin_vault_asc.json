@@ -55,7 +55,7 @@
     {
       "name": "burn_parameters",
       "desc": "Burn climatecoins to compensate the emissions from an asset",
-      "args": [{ "name": "compensating_asset", "type": "asset" }],
+      "args": [],
       "returns": { "type": "uint64" }
     },
     {

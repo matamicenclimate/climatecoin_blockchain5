@@ -183,7 +183,7 @@ def swap_nft_to_fungible():
     )
 
 burn_parameters_selector = MethodSignature(
-    "burn_parameters(asset)uint64"
+    "burn_parameters()uint64"
 )
 @Subroutine(TealType.uint64)
 def burn_parameters():
@@ -198,13 +198,14 @@ burn_climatecoins_selector = MethodSignature(
 @Subroutine(TealType.uint64)
 def burn_climatecoins():
     transfer_tx = Gtxn[0]
+    burn_parameters_txn = Gtxn[1]
     valid_burn = Assert(
         And(
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
             # No params, we send all the asa_ids in the foreign_assets
             Txn.application_args.length() == Int(1),
-            Global.group_size() == Int(2),
+            Global.group_size() == Int(3),
             # Len(App.globalGet(DUMP_APP_ID)) != Int(0)
         ))
 
@@ -222,10 +223,12 @@ def burn_climatecoins():
         valid_burn,
         # ensure_opted_in(asset_id),
         total_co2_burned.store(Int(0)),
-        For(i.store(Int(0)), i.load() < Txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
+        For(i.store(Int(0)), i.load() < burn_parameters_txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
             Seq(
+                # assert the nft was created by the contract
+                # Assert(Global.current_application_address() == AssetParam.creator(burn_parameters_txn.assets[i.load()])),
                 InnerTxnBuilder.Begin(),
-                app_nft_balance := AssetHolding.balance(Global.current_application_address(), Txn.assets[i.load()]),
+                app_nft_balance := AssetHolding.balance(Global.current_application_address(), burn_parameters_txn.assets[i.load()]),
                 # get the minimum between the assetHoldings and the amountToBurn
                 amount_to_burn.store(min(app_nft_balance.value(), Minus(coins_to_burn, total_co2_burned.load()))),
                 # store it in the scratchVar
@@ -233,7 +236,7 @@ def burn_climatecoins():
                 InnerTxnBuilder.SetFields(
                     {
                         TxnField.type_enum: TxnType.AssetTransfer,
-                        TxnField.xfer_asset: Txn.assets[i.load()],
+                        TxnField.xfer_asset: burn_parameters_txn.assets[i.load()],
                         TxnField.asset_amount: amount_to_burn.load(),
                         TxnField.asset_receiver: dump_address,
                     }
@@ -358,6 +361,7 @@ def contract():
         [And(Txn.application_args[0] == create_selector, from_creator), create_nft()],
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
         [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],
+        [And(Txn.application_args[0] == burn_parameters_selector), burn_parameters()],
         [And(Txn.application_args[0] == burn_climatecoins_selector), burn_climatecoins()],
         [Txn.application_args[0] == unfreeze_nft_selector, unfreeze_nft()],
         [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],

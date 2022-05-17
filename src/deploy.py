@@ -201,6 +201,7 @@ def demo():
             print_asset_holding(indexer_client, user_addr, nft_id, "user - nft")
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
 
+        time.sleep(1.5)  # wait for the indexer to catch up
         climatecoins_to_burn = get_asset_holding(indexer_client, user_addr, climatecoin_asa_id)
 
         print("[ 3 ] Burn the climatecoins")
@@ -208,11 +209,13 @@ def demo():
         # add random nonce in note so we can send identicall txns
         atc.add_transaction(
             TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, 100, climatecoin_asa_id), signer=user_signer
+                txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn, climatecoin_asa_id), signer=user_signer
             )
         )
+        atc.add_method_call(vault_app_id, get_method(iface, "burn_parameters"), manager_addr, sp, manager_signer,
+                            foreign_assets=minted_nfts)
         atc.add_method_call(vault_app_id, get_method(iface, "burn_climatecoins"), user_addr, sp, user_signer,
-                            accounts=[dump_app_addr], note=os.urandom(1), foreign_assets=minted_nfts)
+                            accounts=[dump_app_addr], foreign_assets=minted_nfts)
         atc.build_group()
         result = atc.execute(client, 4)
         for res in result.abi_results:
@@ -222,7 +225,7 @@ def demo():
         print(minted_nfts)
 
         print("[ 3 ] Final balances")
-        time.sleep(3)  # wait for the indexer to catch up
+        time.sleep(1.5)  # wait for the indexer to catch up
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
         print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
 
