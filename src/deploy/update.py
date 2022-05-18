@@ -16,9 +16,9 @@ url = "https://node.testnet.algoexplorerapi.io"
 indexer_url = "https://algoindexer.testnet.algoexplorerapi.io"
 deployer_mnemonic = "light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
 random_user = "know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
-random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
+# random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
 
-deployed_app_id=80758140
+deployed_app_id=89706224
 
 client = algod.AlgodClient(token, url)
 indexer_client = indexer.IndexerClient(
