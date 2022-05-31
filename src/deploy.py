@@ -17,8 +17,8 @@ from utils import compile_program, wait_for_confirmation
 
 #
 # Script config
-testnet = True
-delete_on_finish = False
+testnet = False
+delete_on_finish = True
 ########################
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -162,7 +162,7 @@ def demo():
                                 [nft_total_supply, dump_app_id, dump_app_addr], note=metadata_json.encode(), )
             results = atc.execute(client, 2)
 
-            created_nft_id = results.abi_results[0].return_value
+            created_nft_id = results.abi_results[-1].return_value
             print("Created nft {}".format(created_nft_id))
             minted_nfts.append(created_nft_id)
             #

@@ -17,6 +17,56 @@ MINT_FEE=Bytes('nft_mint_fee')
 TOTAL_COINS_BURNED=Bytes('total_coins_burned')
 DUMP_APP_ID=Bytes('dump_app_id')
 
+@Subroutine(TealType.none)
+def mint_climate_nft(normalize_fee, note):
+    dump_address = Sha512_256(
+        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID))))
+
+    return Seq(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetConfig,
+                TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
+                TxnField.config_asset_unit_name: Bytes("CO2"),
+                TxnField.config_asset_total: normalize_fee,
+                TxnField.config_asset_decimals: Int(0),
+                TxnField.config_asset_manager: Global.current_application_address(),
+                TxnField.config_asset_reserve: dump_address,
+                TxnField.config_asset_freeze: Global.current_application_address(),
+                TxnField.config_asset_clawback: Global.current_application_address(),
+                TxnField.config_asset_default_frozen: Int(1),
+                TxnField.note: note
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+        Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: App.globalGet(DUMP_APP_ID),
+                # Pass the selector as the first arg to trigger the `echo` method
+                TxnField.application_args: [
+                    do_optin_selector,
+                    Itob(Int(0))  # first item in assets array
+                ],
+                TxnField.assets: [InnerTxn.created_asset_id()],
+                # Set fee to 0 so caller has to cover it
+                TxnField.fee: Int(0),
+            }
+        ),
+        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetFreeze,
+                TxnField.freeze_asset: InnerTxn.created_asset_id(),
+                TxnField.freeze_asset_frozen: Int(0),
+                TxnField.freeze_asset_account: dump_address,
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+    )
 
 create_selector = MethodSignature(
     "create_nft(uint64,application,account)uint64"
@@ -33,96 +83,9 @@ def create_nft():
     normalize_total = Div(total, multiplier)
     normalize_fee = div_ceil(fee, multiplier)
 
-    dump_address = Sha512_256(
-        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
-    )
-
     return Seq(
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetConfig,
-                TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
-                TxnField.config_asset_unit_name: Bytes("CO2"),
-                TxnField.config_asset_total: normalize_fee,
-                TxnField.config_asset_decimals: Int(0),
-                TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: dump_address,
-                TxnField.config_asset_freeze: Global.current_application_address(),
-                TxnField.config_asset_clawback: Global.current_application_address(),
-                TxnField.config_asset_default_frozen: Int(1),
-                TxnField.note: Txn.note()
-            }
-        ),
-        InnerTxnBuilder.Submit(),
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.ApplicationCall,
-                TxnField.application_id: App.globalGet(DUMP_APP_ID),
-                # Pass the selector as the first arg to trigger the `echo` method
-                TxnField.application_args: [
-                    do_optin_selector, 
-                    Itob(Int(0))  # first item in assets array
-                ],
-                TxnField.assets: [InnerTxn.created_asset_id()],
-                # Set fee to 0 so caller has to cover it
-                TxnField.fee: Int(0),
-            }
-        ),
-        InnerTxnBuilder.Next(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetFreeze,
-                TxnField.freeze_asset: InnerTxn.created_asset_id(),
-                TxnField.freeze_asset_frozen: Int(0),
-                TxnField.freeze_asset_account: dump_address,
-            }
-        ),
-        InnerTxnBuilder.Submit(),
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetConfig,
-                TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
-                TxnField.config_asset_unit_name: Bytes("CO2"),
-                TxnField.config_asset_total: normalize_total,
-                TxnField.config_asset_decimals: Int(0),
-                TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: dump_address,
-                TxnField.config_asset_freeze: Global.current_application_address(),
-                TxnField.config_asset_clawback: Global.current_application_address(),
-                TxnField.config_asset_default_frozen: Int(1),
-                TxnField.note: Txn.note()
-            }
-        ),
-        InnerTxnBuilder.Submit(),
-        Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.ApplicationCall,
-                TxnField.application_id: App.globalGet(DUMP_APP_ID),
-                # Pass the selector as the first arg to trigger the `echo` method
-                TxnField.application_args: [
-                    do_optin_selector, 
-                    Itob(Int(0))  # first item in assets array
-                ],
-                TxnField.assets: [InnerTxn.created_asset_id()],
-                # Set fee to 0 so caller has to cover it
-                TxnField.fee: Int(0),
-            }
-        ),
-        InnerTxnBuilder.Next(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetFreeze,
-                TxnField.freeze_asset: InnerTxn.created_asset_id(),
-                TxnField.freeze_asset_frozen: Int(0),
-                TxnField.freeze_asset_account: dump_address,
-            }
-        ),
-        InnerTxnBuilder.Submit(),
+        mint_climate_nft(normalize_fee, Txn.note()),
+        mint_climate_nft(normalize_total, Txn.note()),
         Int(1),
     )
 
@@ -132,9 +95,6 @@ unfreeze_nft_selector = MethodSignature(
 @Subroutine(TealType.uint64)
 def unfreeze_nft():
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
-    dump_address = Sha512_256(
-        Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID)))
-    )
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
