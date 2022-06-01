@@ -2,7 +2,7 @@
   "name": "climatecoin_vault_arc4",
   "networks": {
     "testnet": {
-      "appID": 90425303
+      "appID": 93095174
     }
   },
   "methods": [
