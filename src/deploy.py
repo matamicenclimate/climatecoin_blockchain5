@@ -257,6 +257,17 @@ def demo():
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
         print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
 
+        print("[ 4 ] Minting compensation NFT")
+        atc = AtomicTransactionComposer()
+        metadata_json, encoded = get_dummy_metadata()
+
+        atc.add_method_call(vault_app_id, get_method(iface, "mint_compensation_nft"), manager_addr, sp, manager_signer,
+                            note=metadata_json.encode() )
+        result = atc.execute(client, 4)
+        for res in result.abi_results:
+            print(res.return_value)
+
+
         for i in range(len(minted_nfts)):
             nft_id = minted_nfts[i]
             print_asset_holding(indexer_client, dump_app_addr, nft_id, f"dump - nft {i}")

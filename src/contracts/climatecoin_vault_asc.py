@@ -89,6 +89,34 @@ def create_nft():
         Int(1),
     )
 
+mint_compensation_nft_selector = MethodSignature(
+    "mint_compensation_nft()uint64"
+)
+@Subroutine(TealType.uint64)
+def mint_compensation_nft():
+    return Seq(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetConfig,
+                TxnField.config_asset_name: Bytes("CO2_COMPENSATION@ARC69"),
+                TxnField.config_asset_unit_name: Bytes("BUYCO2"),
+                TxnField.config_asset_total: Int(1),
+                TxnField.config_asset_decimals: Int(0),
+                TxnField.config_asset_manager: Global.current_application_address(),
+                # TODO: who is the reserve of this?
+                TxnField.config_asset_reserve: Global.current_application_address(),
+                TxnField.config_asset_freeze: Global.current_application_address(),
+                TxnField.config_asset_clawback: Global.current_application_address(),
+                TxnField.config_asset_default_frozen: Int(0),
+                TxnField.note: Txn.note()
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+        Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
+        Int(1),
+    )
+
 unfreeze_nft_selector = MethodSignature(
     "unfreeze_nft(asset)void"
 )
@@ -117,7 +145,7 @@ def swap_nft_to_fungible():
     transfer_tx = Gtxn[1]
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
     # ensure we are swapping an NFT fully
-    asset_supply = AssetParam.total(transfer_tx.xfer_asset()).value()
+    asset_supply = AssetParam.total(transfer_tx.xfer_asset())
     # ensure the NFT was minted by the contract
     asset_minter = AssetParam.creator(transfer_tx.xfer_asset())
     valid_swap = Assert(
@@ -127,17 +155,19 @@ def swap_nft_to_fungible():
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(3),
+            # make sure were using the same asset
             asset_id == transfer_tx.xfer_asset(),
-            # not working?
-            asset_minter.value() == Global.current_application_address()
-        ))
+            # is the contract the minter of the NFT
+            asset_minter.value() == Global.current_application_address(),
+            # are we sending all the supply
+            transfer_tx.asset_amount() == asset_supply.value()
+    ))
 
     return Seq(
         asset_minter,
+        asset_supply,
         valid_swap,
         ensure_opted_in(asset_id),
-        # clawback all the asset and exposes InnerTxn.asset_amount() to mint some climatecoins
-        # clawback_asset(asset_id, Txn.sender()),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
             {
@@ -324,16 +354,21 @@ def contract():
     from_creator = Txn.sender() == Global.creator_address()
 
     handle_noop = Cond(
-        [And(Txn.application_args[0] == mint_climatecoin_selector, from_creator), mint_climatecoin()],
-        [And(Txn.application_args[0] == set_minter_address_selector, from_creator), set_minter_address()],
-        [And(Txn.application_args[0] == move_selector, from_creator), move()],
+        # actions
         [And(Txn.application_args[0] == create_selector, from_creator), create_nft()],
-        [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
-        [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],
+        [Txn.application_args[0] == unfreeze_nft_selector, unfreeze_nft()],
+        [And(Txn.application_args[0] == move_selector, from_creator), move()],
+        [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
         [And(Txn.application_args[0] == burn_parameters_selector), burn_parameters()],
         [And(Txn.application_args[0] == burn_climatecoins_selector), burn_climatecoins()],
-        [Txn.application_args[0] == unfreeze_nft_selector, unfreeze_nft()],
-        [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
+        [And(Txn.application_args[0] == mint_compensation_nft_selector), mint_compensation_nft()],
+        # setters
+        [And(Txn.application_args[0] == set_minter_address_selector, from_creator), set_minter_address()],
+        [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
+        [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],
+        [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],
+        # config
+        [And(Txn.application_args[0] == mint_climatecoin_selector, from_creator), mint_climatecoin()],
     )
 
     return Cond(

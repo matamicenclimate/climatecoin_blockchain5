@@ -47,6 +47,12 @@
       "returns": { "name": "developer-nft-id", "type": "uint64" }
     },
     {
+      "name": "mint_compensation_nft",
+      "desc": "mint a compensation NFT after burning climatecoins",
+      "args": [],
+      "returns": { "type": "uint64" }
+    },
+    {
       "name": "unfreeze_nft",
       "desc": "Create an nft with appropriate parameters, return its id",
       "args": [{ "name": "asset", "type": "asset" }],
