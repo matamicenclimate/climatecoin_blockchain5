@@ -17,8 +17,8 @@ from utils import compile_program, wait_for_confirmation
 
 #
 # Script config
-testnet = True
-delete_on_finish = False
+testnet = False
+delete_on_finish = True
 ########################
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

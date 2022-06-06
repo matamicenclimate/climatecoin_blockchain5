@@ -5,17 +5,19 @@ from pyteal import *
 
 from src.pyteal_utils import ensure_opted_in, min, div_ceil
 from src.contracts.climatecoin_dump_asc import do_optin_selector
+
 TEAL_VERSION = 6
 
 return_prefix = Bytes("base16", "0x151f7c75")  # Literally hash('return')[:4]
 
 # Global Vars
-NFT_MINTER_ADDRESS=Bytes('nft_minter_address')
-ORACLE_ADDRESS=Bytes('oracle_address')
-CLIMATECOIN_ASA_ID=Bytes('climatecoin_asa_id')
-MINT_FEE=Bytes('nft_mint_fee')
-TOTAL_COINS_BURNED=Bytes('total_coins_burned')
-DUMP_APP_ID=Bytes('dump_app_id')
+NFT_MINTER_ADDRESS = Bytes('nft_minter_address')
+ORACLE_ADDRESS = Bytes('oracle_address')
+CLIMATECOIN_ASA_ID = Bytes('climatecoin_asa_id')
+MINT_FEE = Bytes('nft_mint_fee')
+TOTAL_COINS_BURNED = Bytes('total_coins_burned')
+DUMP_APP_ID = Bytes('dump_app_id')
+
 
 @Subroutine(TealType.none)
 def mint_climate_nft(normalize_fee, note):
@@ -68,9 +70,12 @@ def mint_climate_nft(normalize_fee, note):
         InnerTxnBuilder.Submit(),
     )
 
+
 create_selector = MethodSignature(
     "create_nft(uint64,application,account)uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def create_nft():
     #
@@ -84,14 +89,18 @@ def create_nft():
     normalize_fee = div_ceil(fee, multiplier)
 
     return Seq(
-        mint_climate_nft(normalize_fee, Txn.note()),
+        If(App.globalGet(MINT_FEE) != Int(0))
+        .Then(mint_climate_nft(normalize_fee, Txn.note())),
         mint_climate_nft(normalize_total, Txn.note()),
         Int(1),
     )
 
+
 mint_compensation_nft_selector = MethodSignature(
     "mint_compensation_nft()uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def mint_compensation_nft():
     return Seq(
@@ -117,9 +126,12 @@ def mint_compensation_nft():
         Int(1),
     )
 
+
 unfreeze_nft_selector = MethodSignature(
     "unfreeze_nft(asset)void"
 )
+
+
 @Subroutine(TealType.uint64)
 def unfreeze_nft():
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
@@ -137,9 +149,12 @@ def unfreeze_nft():
         Int(1),
     )
 
+
 swap_nft_to_fungible_selector = MethodSignature(
     "swap_nft_to_fungible(asset)uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def swap_nft_to_fungible():
     transfer_tx = Gtxn[1]
@@ -155,13 +170,13 @@ def swap_nft_to_fungible():
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
             Global.group_size() == Int(3),
-            # make sure were using the same asset
-            asset_id == transfer_tx.xfer_asset(),
             # is the contract the minter of the NFT
             asset_minter.value() == Global.current_application_address(),
-            # are we sending all the supply
-            transfer_tx.asset_amount() == asset_supply.value()
-    ))
+            # make sure were using the same asset
+            transfer_tx.xfer_asset() == asset_id,
+            transfer_tx.asset_receiver() == Global.current_application_address(),  # are we receiving the asset fully
+            transfer_tx.asset_amount() == asset_supply.value()  # are we sending all the supply
+        ))
 
     return Seq(
         asset_minter,
@@ -181,9 +196,12 @@ def swap_nft_to_fungible():
         Int(1)
     )
 
+
 burn_parameters_selector = MethodSignature(
     "burn_parameters()uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def burn_parameters():
     return Seq(
@@ -191,9 +209,12 @@ def burn_parameters():
         Int(1)
     )
 
+
 burn_climatecoins_selector = MethodSignature(
     "burn_climatecoins()uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def burn_climatecoins():
     transfer_tx = Gtxn[0]
@@ -227,7 +248,8 @@ def burn_climatecoins():
                 # assert the nft was created by the contract
                 # Assert(Global.current_application_address() == AssetParam.creator(burn_parameters_txn.assets[i.load()])),
                 InnerTxnBuilder.Begin(),
-                app_nft_balance := AssetHolding.balance(Global.current_application_address(), burn_parameters_txn.assets[i.load()]),
+                app_nft_balance := AssetHolding.balance(Global.current_application_address(),
+                                                        burn_parameters_txn.assets[i.load()]),
                 # get the minimum between the assetHoldings and the amountToBurn
                 amount_to_burn.store(min(app_nft_balance.value(), Minus(coins_to_burn, total_co2_burned.load()))),
                 # store it in the scratchVar
@@ -251,9 +273,12 @@ def burn_climatecoins():
         Int(1)
     )
 
+
 mint_climatecoin_selector = MethodSignature(
     "mint_climatecoin()uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def mint_climatecoin():
     can_mint = Assert(App.globalGet(CLIMATECOIN_ASA_ID) == Int(0))
@@ -280,9 +305,12 @@ def mint_climatecoin():
         Int(1)
     )
 
+
 set_minter_address_selector = MethodSignature(
     "set_minter_address(address)address"
 )
+
+
 @Subroutine(TealType.uint64)
 def set_minter_address():
     return Seq(
@@ -295,6 +323,8 @@ def set_minter_address():
 set_fee_selector = MethodSignature(
     "set_fee_selector(uint64)uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def set_fee():
     return Seq(
@@ -303,9 +333,12 @@ def set_fee():
         Int(1)
     )
 
+
 set_dump_selector = MethodSignature(
     "set_dump(uint64)address"
 )
+
+
 @Subroutine(TealType.uint64)
 def set_dump():
     return Seq(
@@ -314,9 +347,12 @@ def set_dump():
         Int(1)
     )
 
+
 move_selector = MethodSignature(
     "move(asset,account,account,uint64)void"
 )
+
+
 @Subroutine(TealType.uint64)
 def move():
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
@@ -324,6 +360,7 @@ def move():
     to_acct = Txn.accounts[Btoi(Txn.application_args[3])]
     amount = Btoi(Txn.application_args[4])
     return Seq(move_asset(asset_id, from_acct, to_acct, amount), Int(1))
+
 
 @Subroutine(TealType.none)
 def move_asset(asset_id, owner, buyer, amount):
@@ -341,13 +378,14 @@ def move_asset(asset_id, owner, buyer, amount):
         InnerTxnBuilder.Submit(),
     )
 
+
 def contract():
     def initialize_vault():
         return Seq(
             App.globalPut(CLIMATECOIN_ASA_ID, Int(0)),
             App.globalPut(DUMP_APP_ID, Int(0)),
             App.globalPut(TOTAL_COINS_BURNED, Int(0)),
-            App.globalPut(MINT_FEE, Int(5)),            
+            App.globalPut(MINT_FEE, Int(5)),
             Int(1)
         )
 
