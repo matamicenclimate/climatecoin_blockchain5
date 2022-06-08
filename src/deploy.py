@@ -1,11 +1,9 @@
 import time
-from email.mime import application
 import os
 from algosdk.v2client import indexer
 from algosdk.future.transaction import *
 from algosdk.atomic_transaction_composer import *
 from algosdk.abi import *
-from algosdk.encoding import checksum, encode_address
 from algosdk import util, mnemonic
 
 from sandbox import get_accounts
@@ -123,8 +121,6 @@ def demo():
         )
 
         atc.add_method_call(vault_app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
-        # atc.add_method_call(vault_app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
-        #                     [manager_addr])
         atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
         atc.add_method_call(dump_app_id, get_method(dump_iface, "set_vault_app"), manager_addr, sp, manager_signer,
