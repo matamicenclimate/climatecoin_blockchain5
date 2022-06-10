@@ -36,6 +36,7 @@ def mint_climate_nft(normalize_fee, note):
                 TxnField.config_asset_manager: Global.current_application_address(),
                 TxnField.config_asset_reserve: dump_address,
                 TxnField.config_asset_freeze: Global.current_application_address(),
+                # TODO: do we need a clwaback for this??
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
                 TxnField.note: note
@@ -48,7 +49,6 @@ def mint_climate_nft(normalize_fee, note):
             {
                 TxnField.type_enum: TxnType.ApplicationCall,
                 TxnField.application_id: App.globalGet(DUMP_APP_ID),
-                # Pass the selector as the first arg to trigger the `echo` method
                 TxnField.application_args: [
                     do_optin_selector,
                     Itob(Int(0))  # first item in assets array
@@ -71,16 +71,17 @@ def mint_climate_nft(normalize_fee, note):
     )
 
 
-create_selector = MethodSignature(
-    "create_nft(uint64,application,account)uint64"
+mint_developer_nft_selector = MethodSignature(
+    "mint_developer_nft(uint64,application,account)uint64"
 )
 
 
 @Subroutine(TealType.uint64)
-def create_nft():
+def mint_developer_nft():
     #
     multiplier = Int(1000)
-    amount = Mul(Btoi(Txn.application_args[1]), multiplier)
+    nft_total_supply = Btoi(Txn.application_args[1])
+    amount = Mul(nft_total_supply, multiplier)
 
     total = Mul(Div(amount, Int(100)), Minus(Int(100), App.globalGet(MINT_FEE)))
     fee = Mul(Div(amount, Int(100)), App.globalGet(MINT_FEE))
@@ -153,10 +154,9 @@ def unfreeze_nft():
 swap_nft_to_fungible_selector = MethodSignature(
     "swap_nft_to_fungible(asset)uint64"
 )
-
-
 @Subroutine(TealType.uint64)
 def swap_nft_to_fungible():
+    unfreeze_txn = Gtxn[0]
     transfer_tx = Gtxn[1]
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
     # ensure we are swapping an NFT fully
@@ -213,14 +213,13 @@ def burn_parameters():
 burn_climatecoins_selector = MethodSignature(
     "burn_climatecoins()uint64"
 )
-
-
 @Subroutine(TealType.uint64)
 def burn_climatecoins():
     transfer_tx = Gtxn[0]
     burn_parameters_txn = Gtxn[1]
     valid_burn = Assert(
         And(
+            # no funky stuff
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
             # No params, we send all the asa_ids in the foreign_assets
@@ -359,7 +358,10 @@ def move():
     from_acct = Txn.accounts[Btoi(Txn.application_args[2])]
     to_acct = Txn.accounts[Btoi(Txn.application_args[3])]
     amount = Btoi(Txn.application_args[4])
-    return Seq(move_asset(asset_id, from_acct, to_acct, amount), Int(1))
+    return Seq(
+        move_asset(asset_id, from_acct, to_acct, amount), 
+        Int(1)
+    )
 
 
 @Subroutine(TealType.none)
@@ -393,7 +395,7 @@ def contract():
 
     handle_noop = Cond(
         # actions
-        [And(Txn.application_args[0] == create_selector, from_creator), create_nft()],
+        [And(Txn.application_args[0] == mint_developer_nft_selector, from_creator), mint_developer_nft()],
         [Txn.application_args[0] == unfreeze_nft_selector, unfreeze_nft()],
         [And(Txn.application_args[0] == move_selector, from_creator), move()],
         [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
@@ -403,7 +405,6 @@ def contract():
         # setters
         [And(Txn.application_args[0] == set_minter_address_selector, from_creator), set_minter_address()],
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
-        [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],
         [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],
         # config
         [And(Txn.application_args[0] == mint_climatecoin_selector, from_creator), mint_climatecoin()],

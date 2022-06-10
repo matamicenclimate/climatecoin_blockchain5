@@ -37,7 +37,7 @@
       "returns": { "type": "uint64" }
     },
     {
-      "name": "create_nft",
+      "name": "mint_developer_nft",
       "desc": "Create an nft with appropriate parameters, return its id",
       "args": [
         { "name": "total_supply", "type": "uint64" },
@@ -74,7 +74,7 @@
       "name": "move",
       "desc": "Moves the asset passed from one account to another",
       "args": [
-        { "name": "asset", "type": "asset" },
+        { "name": "asset_id", "type": "asset" },
         { "name": "from", "type": "account" },
         { "name": "to", "type": "account" },
         { "name": "amount", "type": "uint64" }
