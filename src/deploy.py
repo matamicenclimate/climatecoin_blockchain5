@@ -1,11 +1,9 @@
 import time
-from email.mime import application
 import os
 from algosdk.v2client import indexer
 from algosdk.future.transaction import *
 from algosdk.atomic_transaction_composer import *
 from algosdk.abi import *
-from algosdk.encoding import checksum, encode_address
 from algosdk import util, mnemonic
 
 from sandbox import get_accounts
@@ -123,8 +121,6 @@ def demo():
         )
 
         atc.add_method_call(vault_app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
-        # atc.add_method_call(vault_app_id, get_method(iface, "set_minter_address"), manager_addr, sp, manager_signer,
-        #                     [manager_addr])
         atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
         atc.add_method_call(dump_app_id, get_method(dump_iface, "set_vault_app"), manager_addr, sp, manager_signer,
@@ -158,7 +154,7 @@ def demo():
             metadata_json, encoded = get_dummy_metadata()
             nft_total_supply = 250
 
-            atc.add_method_call(vault_app_id, get_method(iface, "create_nft"), manager_addr, sp, manager_signer,
+            atc.add_method_call(vault_app_id, get_method(iface, "mint_developer_nft"), manager_addr, sp, manager_signer,
                                 [nft_total_supply, dump_app_id, dump_app_addr], note=metadata_json.encode(), )
             results = atc.execute(client, 2)
 
@@ -256,6 +252,17 @@ def demo():
         time.sleep(1.5)  # wait for the indexer to catch up
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
         print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
+
+        print("[ 4 ] Minting compensation NFT")
+        atc = AtomicTransactionComposer()
+        metadata_json, encoded = get_dummy_metadata()
+
+        atc.add_method_call(vault_app_id, get_method(iface, "mint_compensation_nft"), manager_addr, sp, manager_signer,
+                            note=metadata_json.encode() )
+        result = atc.execute(client, 4)
+        for res in result.abi_results:
+            print(res.return_value)
+
 
         for i in range(len(minted_nfts)):
             nft_id = minted_nfts[i]
