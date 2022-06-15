@@ -244,8 +244,8 @@ def demo():
                             accounts=[dump_app_addr], foreign_assets=minted_nfts)
 
         metadata_json, encoded = get_dummy_metadata()
-        atc.add_method_call(vault_app_id, get_method(iface, "mint_unverified_compensation_nft"), manager_addr, sp, manager_signer,
-                            note=metadata_json.encode() )
+        atc.add_method_call(vault_app_id, get_method(iface, "mint_unverified_compensation_nft"), manager_addr, sp, manager_signer, [dump_app_id],
+                            note=metadata_json.encode())
         atc.build_group()
         result = atc.execute(client, 4)
         for res in result.abi_results:
@@ -318,7 +318,7 @@ def demo():
         )
 
         # Exchange the temporal nft to the definitive one. Dump the temporal one using a clawback.
-        atc.add_method_call(vault_app_id, get_method(iface, "verify_compensation_nft"), manager_addr, sp, manager_signer, [unv_comp_nft_id, compensation_nft_id, user_addr, dump_app_id, dump_app_addr])
+        atc.add_method_call(vault_app_id, get_method(iface, "verify_compensation_nft"), manager_addr, sp, manager_signer, [unv_comp_nft_id, compensation_nft_id, user_addr, dump_app_addr])
 
         atc.execute(client, 4)
 

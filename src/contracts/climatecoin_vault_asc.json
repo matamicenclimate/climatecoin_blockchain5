@@ -55,7 +55,9 @@
     {
       "name": "mint_unverified_compensation_nft",
       "desc": "mint a temporal compensation NFT after burning climatecoins while the burn is being manually verified",
-      "args": [],
+      "args": [
+        { "name": "dump_app_id", "type": "application" }
+      ],
       "returns": { "type": "uint64" }
     },
     {
@@ -65,7 +67,6 @@
         { "name": "unverified_nft_id", "type": "asset" },
         { "name": "verified_nft_id", "type": "asset" },
         { "name": "unverified_nft_holder", "type": "account" },
-        { "name": "dump_app_id", "type": "application" },
         { "name": "dump_app_address", "type": "account" }
       ],
       "returns": { "type": "void" }

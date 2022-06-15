@@ -98,12 +98,15 @@ def mint_developer_nft():
 
 
 mint_unverified_compensation_nft_selector = MethodSignature(
-    "mint_unverified_compensation_nft()uint64"
+    "mint_unverified_compensation_nft(application)uint64"
 )
 
 
 @Subroutine(TealType.uint64)
 def mint_unverified_compensation_nft():
+
+    dump_app_id = Txn.application_args[1]
+
     return Seq(
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
@@ -123,12 +126,26 @@ def mint_unverified_compensation_nft():
         ),
         InnerTxnBuilder.Submit(),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: App.globalGet(DUMP_APP_ID),
+                TxnField.application_args: [
+                    do_optin_selector,
+                    Itob(Int(0))
+                ],
+                TxnField.assets: [InnerTxn.created_asset_id()],
+                TxnField.fee: Int(0),
+            }
+        ),
+        InnerTxnBuilder.Submit(),
         Int(1),
     )
 
 
 verify_compensation_nft_selector = MethodSignature(
-    "verify_compensation_nft(uint64,uint64,account,application,account)void"
+    "verify_compensation_nft(uint64,uint64,account,account)void"
 )
 
 
@@ -143,24 +160,10 @@ def verify_compensation_nft():
 
     user_account = Txn.accounts[Btoi(Txn.application_args[3])]
 
-    dump_app_id = Txn.application_args[4]
-    dump_address = Txn.accounts[Btoi(Txn.application_args[5])]
+    dump_address = Txn.accounts[Btoi(Txn.application_args[4])]
 
     return Seq(
         InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.ApplicationCall,
-                TxnField.application_id: App.globalGet(DUMP_APP_ID),
-                TxnField.application_args: [
-                    do_optin_selector,
-                    Itob(Int(0))
-                ],
-                TxnField.assets: [unverified_nft_id],
-                TxnField.fee: Int(0),
-            }
-        ),
-        InnerTxnBuilder.Next(),
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetTransfer,
