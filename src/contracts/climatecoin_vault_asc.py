@@ -36,7 +36,7 @@ def mint_climate_nft(normalize_fee, note):
                 TxnField.config_asset_manager: Global.current_application_address(),
                 TxnField.config_asset_reserve: dump_address,
                 TxnField.config_asset_freeze: Global.current_application_address(),
-                # TODO: do we need a clwaback for this??
+                # TODO: do we need a clawback for this??
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
                 TxnField.note: note
@@ -91,8 +91,98 @@ def mint_developer_nft():
 
     return Seq(
         If(App.globalGet(MINT_FEE) != Int(0))
-        .Then(mint_climate_nft(normalize_fee, Txn.note())),
+            .Then(mint_climate_nft(normalize_fee, Txn.note())),
         mint_climate_nft(normalize_total, Txn.note()),
+        Int(1),
+    )
+
+
+mint_unverified_compensation_nft_selector = MethodSignature(
+    "mint_unverified_compensation_nft()uint64"
+)
+
+
+@Subroutine(TealType.uint64)
+def mint_unverified_compensation_nft():
+    return Seq(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetConfig,
+                TxnField.config_asset_name: Bytes("CO2_UNV_COMPENSATION@ARC69"),
+                TxnField.config_asset_unit_name: Bytes("BUYCO2U"),
+                TxnField.config_asset_total: Int(1),
+                TxnField.config_asset_decimals: Int(0),
+                TxnField.config_asset_manager: Global.current_application_address(),
+                TxnField.config_asset_reserve: Global.current_application_address(),
+                TxnField.config_asset_freeze: Global.current_application_address(),
+                TxnField.config_asset_clawback: Global.current_application_address(),
+                TxnField.config_asset_default_frozen: Int(1),
+                TxnField.note: Txn.note()
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+        Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
+        Int(1),
+    )
+
+
+verify_compensation_nft_selector = MethodSignature(
+    "verify_compensation_nft(uint64,uint64,account,application,account)void"
+)
+
+
+@Subroutine(TealType.uint64)
+def verify_compensation_nft():
+    # Mover NFT nuevo al usuario
+    # Optin del dump al unv_nft
+    # Clawback del unv_nft al dump
+
+    unverified_nft_id = Txn.assets[Btoi(Txn.application_args[1])]
+    verified_nft_id = Txn.assets[Btoi(Txn.application_args[2])]
+
+    user_account = Txn.accounts[Btoi(Txn.application_args[3])]
+
+    dump_app_id = Txn.application_args[4]
+    dump_address = Txn.accounts[Btoi(Txn.application_args[5])]
+
+    return Seq(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: App.globalGet(DUMP_APP_ID),
+                TxnField.application_args: [
+                    do_optin_selector,
+                    Itob(Int(0))
+                ],
+                TxnField.assets: [unverified_nft_id],
+                TxnField.fee: Int(0),
+            }
+        ),
+        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetTransfer,
+                TxnField.xfer_asset: verified_nft_id,
+                TxnField.asset_amount: Int(1),
+                TxnField.asset_receiver: user_account,
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+
+        move_asset(unverified_nft_id, user_account, dump_address, Int(1)),
+
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetFreeze,
+                TxnField.freeze_asset: unverified_nft_id,
+                TxnField.freeze_asset_frozen: Int(0),
+                TxnField.freeze_asset_account: dump_address,
+            }
+        ),
+        InnerTxnBuilder.Submit(),
         Int(1),
     )
 
@@ -154,6 +244,8 @@ def unfreeze_nft():
 swap_nft_to_fungible_selector = MethodSignature(
     "swap_nft_to_fungible(asset)uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def swap_nft_to_fungible():
     unfreeze_txn = Gtxn[0]
@@ -213,6 +305,8 @@ def burn_parameters():
 burn_climatecoins_selector = MethodSignature(
     "burn_climatecoins()uint64"
 )
+
+
 @Subroutine(TealType.uint64)
 def burn_climatecoins():
     transfer_tx = Gtxn[0]
@@ -224,7 +318,7 @@ def burn_climatecoins():
             Txn.close_remainder_to() == Global.zero_address(),
             # No params, we send all the asa_ids in the foreign_assets
             Txn.application_args.length() == Int(1),
-            Global.group_size() == Int(3),
+            Global.group_size() == Int(4),
             # Len(App.globalGet(DUMP_APP_ID)) != Int(0)
         ))
 
@@ -359,7 +453,7 @@ def move():
     to_acct = Txn.accounts[Btoi(Txn.application_args[3])]
     amount = Btoi(Txn.application_args[4])
     return Seq(
-        move_asset(asset_id, from_acct, to_acct, amount), 
+        move_asset(asset_id, from_acct, to_acct, amount),
         Int(1)
     )
 
@@ -399,9 +493,12 @@ def contract():
         [Txn.application_args[0] == unfreeze_nft_selector, unfreeze_nft()],
         [And(Txn.application_args[0] == move_selector, from_creator), move()],
         [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
-        [And(Txn.application_args[0] == burn_parameters_selector), burn_parameters()],
+        [And(Txn.application_args[0] == burn_parameters_selector, from_creator), burn_parameters()],
         [And(Txn.application_args[0] == burn_climatecoins_selector), burn_climatecoins()],
-        [And(Txn.application_args[0] == mint_compensation_nft_selector), mint_compensation_nft()],
+        [And(Txn.application_args[0] == mint_compensation_nft_selector, from_creator), mint_compensation_nft()],
+        [And(Txn.application_args[0] == mint_unverified_compensation_nft_selector, from_creator),
+         mint_unverified_compensation_nft()],
+        [And(Txn.application_args[0] == verify_compensation_nft_selector, from_creator), verify_compensation_nft()],
         # setters
         [And(Txn.application_args[0] == set_minter_address_selector, from_creator), set_minter_address()],
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],

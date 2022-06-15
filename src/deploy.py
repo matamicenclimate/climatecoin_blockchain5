@@ -15,7 +15,7 @@ from utils import compile_program, wait_for_confirmation
 
 #
 # Script config
-testnet = False
+testnet = True
 delete_on_finish = True
 ########################
 
@@ -30,10 +30,12 @@ if testnet:
     indexer_url = indexer_url_testnet
 
 # this is the one we use in the BE
-deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
+#deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
+deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
 # some other random mnemonic
 # deployer_mnemonic = "light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
-random_user = "know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
+#random_user = "know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
+random_user = "page warfare excess stable avocado cushion mean cube prefer farm dog rally human answer amount same ticket speed sadness march jar estate engine abandon poverty"
 random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
 
 client = algod.AlgodClient(token, url)
@@ -143,7 +145,7 @@ def demo():
         atc.execute(client, 2)
 
         minted_nfts = []
-        for iter in [0, 1]:
+        for iter in [0]:
             sp = client.suggested_params()
             #
             # Mint  some nfts
@@ -177,7 +179,7 @@ def demo():
                 print(res.return_value)
 
             #
-            # Move the NFT to the users waller
+            # Move the NFT to the users wallet
             print(f"[ {iter} ] Manager calling move method")
             tokens_to_move = get_asset_supply(indexer_client, created_nft_id)
             print(tokens_to_move)
@@ -240,13 +242,53 @@ def demo():
                             foreign_assets=minted_nfts)
         atc.add_method_call(vault_app_id, get_method(iface, "burn_climatecoins"), user_addr, sp, user_signer,
                             accounts=[dump_app_addr], foreign_assets=minted_nfts)
+
+        metadata_json, encoded = get_dummy_metadata()
+        atc.add_method_call(vault_app_id, get_method(iface, "mint_unverified_compensation_nft"), manager_addr, sp, manager_signer,
+                            note=metadata_json.encode() )
         atc.build_group()
         result = atc.execute(client, 4)
         for res in result.abi_results:
             print(res.return_value)
 
+        unv_comp_nft_id = result.abi_results[-1].return_value
+
         print("[ 3 ] Minted nft ids")
         print(minted_nfts)
+
+        #
+        # User opts-in to the Unverified compensation NFT
+        print(f"[ {iter} ] User optin to Unverified Compensation NFT")
+        sp = client.suggested_params()
+        atc = AtomicTransactionComposer()
+        # Optin to the created NFT
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, unv_comp_nft_id), signer=user_signer
+            )
+        )
+        result = atc.execute(client, 4)
+        for res in result.abi_results:
+            print(res.return_value)
+
+        #
+        # Move the NFT to the users wallet
+        print(f"[ {iter} ] Manager calling move method")
+        tokens_to_move = get_asset_supply(indexer_client, unv_comp_nft_id)
+        print(tokens_to_move)
+        atc = AtomicTransactionComposer()
+        atc.add_method_call(
+            vault_app_id,
+            get_method(iface, "move"),
+            manager_addr,
+            sp,
+            manager_signer,
+            [unv_comp_nft_id, vault_app_addr, user_addr, tokens_to_move],
+        )
+        result = atc.execute(client, 4)
+        for res in result.abi_results:
+            print(res.return_value)
+        print_asset_holding(indexer_client, user_addr, unv_comp_nft_id, "user - nft")
 
         print("[ 3 ] Final balances")
         time.sleep(1.5)  # wait for the indexer to catch up
@@ -263,6 +305,22 @@ def demo():
         for res in result.abi_results:
             print(res.return_value)
 
+        # Verify compensation
+        compensation_nft_id = result.abi_results[0].return_value
+
+        atc = AtomicTransactionComposer()
+
+        # User optin to compensation nft
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, compensation_nft_id), signer=user_signer
+            )
+        )
+
+        # Exchange the temporal nft to the definitive one. Dump the temporal one using a clawback.
+        atc.add_method_call(vault_app_id, get_method(iface, "verify_compensation_nft"), manager_addr, sp, manager_signer, [unv_comp_nft_id, compensation_nft_id, user_addr, dump_app_id, dump_app_addr])
+
+        atc.execute(client, 4)
 
         for i in range(len(minted_nfts)):
             nft_id = minted_nfts[i]
