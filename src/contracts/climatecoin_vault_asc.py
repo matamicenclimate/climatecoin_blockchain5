@@ -145,7 +145,7 @@ def mint_unverified_compensation_nft():
 
 
 verify_compensation_nft_selector = MethodSignature(
-    "verify_compensation_nft(uint64,uint64,account,account)void"
+    "verify_compensation_nft(asset,asset,account,account)void"
 )
 
 

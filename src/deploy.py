@@ -233,6 +233,10 @@ def demo():
         print("[ 3 ] Burn the climatecoins")
         atc = AtomicTransactionComposer()
         # add random nonce in note so we can send identicall txns
+
+        sp = client.suggested_params()
+        sp.fee = sp.min_fee * 3
+
         atc.add_transaction(
             TransactionWithSigner(
                 txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn, climatecoin_asa_id), signer=user_signer
@@ -288,7 +292,7 @@ def demo():
         result = atc.execute(client, 4)
         for res in result.abi_results:
             print(res.return_value)
-        print_asset_holding(indexer_client, user_addr, unv_comp_nft_id, "user - nft")
+        print_asset_holding(indexer_client, user_addr, unv_comp_nft_id, "user - unverified_receipt_nft")
 
         print("[ 3 ] Final balances")
         time.sleep(1.5)  # wait for the indexer to catch up
