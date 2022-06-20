@@ -151,16 +151,13 @@ verify_compensation_nft_selector = MethodSignature(
 
 @Subroutine(TealType.uint64)
 def verify_compensation_nft():
-    # Mover NFT nuevo al usuario
-    # Optin del dump al unv_nft
-    # Clawback del unv_nft al dump
-
     unverified_nft_id = Txn.assets[Btoi(Txn.application_args[1])]
     verified_nft_id = Txn.assets[Btoi(Txn.application_args[2])]
 
     user_account = Txn.accounts[Btoi(Txn.application_args[3])]
-
     dump_address = Txn.accounts[Btoi(Txn.application_args[4])]
+
+    unv_nft_usr_balance = AssetHolding.balance(user_account, unverified_nft_id)
 
     return Seq(
         InnerTxnBuilder.Begin(),
@@ -174,7 +171,10 @@ def verify_compensation_nft():
         ),
         InnerTxnBuilder.Submit(),
 
-        move_asset(unverified_nft_id, user_account, dump_address, Int(1)),
+        unv_nft_usr_balance,
+        If(unv_nft_usr_balance.value() == Int(1))
+        .Then(move_asset(unverified_nft_id, user_account, dump_address, Int(1)))
+        .Else(move_asset(unverified_nft_id, Global.current_application_address(), dump_address, Int(1))),
 
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.SetFields(
