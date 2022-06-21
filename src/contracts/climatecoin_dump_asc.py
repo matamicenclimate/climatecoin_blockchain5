@@ -10,11 +10,13 @@ TEAL_VERSION = 6
 return_prefix = Bytes("base16", "0x151f7c75")  # Literally hash('return')[:4]
 
 # Global Vars
-VAULT_APP_ID=Bytes('vault_app_id')
+VAULT_APP_ID = Bytes('vault_app_id')
 
 do_optin_selector = MethodSignature(
     "do_optin(asset)void"
 )
+
+
 @Subroutine(TealType.uint64)
 def do_optin():
     asset_id = Txn.assets[Btoi(Txn.application_args[1])]
@@ -32,9 +34,12 @@ def do_optin():
         Int(1)
     )
 
+
 set_vault_address_selector = MethodSignature(
     "set_vault_app(uint64)void"
 )
+
+
 @Subroutine(TealType.uint64)
 def set_vault_address():
     return Seq(
@@ -44,7 +49,6 @@ def set_vault_address():
 
 
 def contract():
-
     def initialize_dump():
         return Seq(
             App.globalPut(VAULT_APP_ID, Int(0)),
@@ -59,8 +63,6 @@ def contract():
         [And(Txn.application_args[0] == do_optin_selector, from_vault), do_optin()],
         [And(Txn.application_args[0] == set_vault_address_selector, from_creator), set_vault_address()],
     )
-
-    
 
     return Cond(
         #  handle app creation

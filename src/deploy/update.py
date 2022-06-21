@@ -14,18 +14,16 @@ token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 url = "https://node.testnet.algoexplorerapi.io"
 # indexer_url = "http://localhost:8980"
 indexer_url = "https://algoindexer.testnet.algoexplorerapi.io"
-deployer_mnemonic = "light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
-random_user = "know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
-# random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
+deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
 
-deployed_app_id=89706224
+deployed_app_id=95682306
 
 client = algod.AlgodClient(token, url)
 indexer_client = indexer.IndexerClient(
     token, indexer_url
 )
 # Read in ABI description
-with open("src/contracts/climatecoin_vault_asc.json") as f:
+with open("contracts/climatecoin_vault_asc.json") as f:
     iface = Interface.from_json(f.read())
 
 
@@ -50,8 +48,7 @@ def demo():
     print("Using {}".format(manager_addr))
 
     # Create app
-    app_id = update_app(manager_addr, deployed_app_id, manager_pk)
-    print("Updated App with id: {}".format(app_id))
+    update_app(manager_addr, deployed_app_id, manager_pk)
 
 
 def update_app(addr, app_id, pk):
@@ -77,7 +74,6 @@ def update_app(addr, app_id, pk):
     result = wait_for_confirmation(client, txid)
 
     print(result)
-    return result['application-index']
 
 
 if __name__ == "__main__":

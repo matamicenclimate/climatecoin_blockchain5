@@ -53,6 +53,25 @@
       "returns": { "type": "uint64" }
     },
     {
+      "name": "mint_unverified_compensation_nft",
+      "desc": "mint a temporal compensation NFT after burning climatecoins while the burn is being manually verified",
+      "args": [
+        { "name": "dump_app_id", "type": "application" }
+      ],
+      "returns": { "type": "uint64" }
+    },
+    {
+      "name": "verify_compensation_nft",
+      "desc": "verify the climatecoins burn, exchange the temporal with the definitive nft",
+      "args": [
+        { "name": "unverified_nft_id", "type": "asset" },
+        { "name": "verified_nft_id", "type": "asset" },
+        { "name": "unverified_nft_holder", "type": "account" },
+        { "name": "dump_app_address", "type": "account" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
       "name": "unfreeze_nft",
       "desc": "Create an nft with appropriate parameters, return its id",
       "args": [{ "name": "asset", "type": "asset" }],
