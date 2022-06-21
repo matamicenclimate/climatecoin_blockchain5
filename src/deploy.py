@@ -13,12 +13,16 @@ from src.contracts.climatecoin_vault_asc import get_approval, get_clear
 from src.utils import get_asset_supply, print_asset_holding, get_dummy_metadata, get_asset_holding
 from utils import compile_program, wait_for_confirmation
 
-#
-# Script config
+#################
+# SCRIPT CONFIG #
+#################
 testnet = True
-delete_on_finish = True
+# delete the contracts when the script is done
+delete_on_finish = False
+# abort script after deploying and setting up the contracts
+only_deploy = True
 user_claims_receipt_nft = False
-########################
+#################
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 url = "http://localhost:4001"
@@ -32,9 +36,13 @@ if testnet:
 
 # this is the one we use in the BE
 #deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
-deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
+# deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
 # some other random mnemonic
 # deployer_mnemonic = "light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
+
+# staging ONLY
+deployer_mnemonic = "claim long sun pipe simple brick essay detail dash mass dose puzzle cash dream job invite motor casino rally vote honey grid simple able mystery"
+
 #random_user = "know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
 random_user = "page warfare excess stable avocado cushion mean cube prefer farm dog rally human answer amount same ticket speed sadness march jar estate engine abandon poverty"
 random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
@@ -133,6 +141,9 @@ def demo():
         for res in result.abi_results:
             print(res.return_value)
         climatecoin_asa_id = result.abi_results[0].return_value
+
+        if only_deploy:
+            raise Exception("Script halted after initial setup")
 
         #
         # Optin to climatecoin
