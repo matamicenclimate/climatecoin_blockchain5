@@ -11,7 +11,6 @@ TEAL_VERSION = 6
 return_prefix = Bytes("base16", "0x151f7c75")  # Literally hash('return')[:4]
 
 # Global Vars
-NFT_MINTER_ADDRESS = Bytes('nft_minter_address')
 ORACLE_ADDRESS = Bytes('oracle_address')
 CLIMATECOIN_ASA_ID = Bytes('climatecoin_asa_id')
 MINT_FEE = Bytes('nft_mint_fee')
@@ -402,20 +401,6 @@ def mint_climatecoin():
     )
 
 
-set_minter_address_selector = MethodSignature(
-    "set_minter_address(address)address"
-)
-
-
-@Subroutine(TealType.uint64)
-def set_minter_address():
-    return Seq(
-        App.globalPut(NFT_MINTER_ADDRESS, Txn.application_args[1]),
-        Log(Concat(return_prefix, Txn.application_args[1])),
-        Int(1)
-    )
-
-
 set_fee_selector = MethodSignature(
     "set_fee_selector(uint64)uint64"
 )
@@ -503,7 +488,6 @@ def contract():
          mint_unverified_compensation_nft()],
         [And(Txn.application_args[0] == verify_compensation_nft_selector, from_creator), verify_compensation_nft()],
         # setters
-        [And(Txn.application_args[0] == set_minter_address_selector, from_creator), set_minter_address()],
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
         [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],
         # config
