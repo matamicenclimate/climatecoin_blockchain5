@@ -327,6 +327,15 @@ def burn_climatecoins():
         )
     )
     burn_parameters_txn = Gtxn[1]
+    valid_burn_parameters_txn = Assert(
+        And(
+            # does the txn call the correct method
+            burn_parameters_txn.application_args[0] == burn_parameters_selector,
+            # did they call the selector in our contract?
+            burn_parameters_txn.receiver() == Global.current_application_address()
+        )
+    )
+
     valid_burn = Assert(
         And(
             # no funky stuff
@@ -350,6 +359,7 @@ def burn_climatecoins():
 
     return Seq(
         valid_transfer_txn,
+        valid_burn_parameters_txn,
         valid_burn,
         # ensure_opted_in(asset_id),
         total_co2_burned.store(Int(0)),
