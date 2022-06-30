@@ -316,7 +316,26 @@ burn_climatecoins_selector = MethodSignature(
 @Subroutine(TealType.uint64)
 def burn_climatecoins():
     transfer_tx = Gtxn[0]
+    valid_transfer_txn = Assert(
+        And(
+            # did the user send us climatecoins?
+            transfer_tx.xfer_asset() == App.globalGet(CLIMATECOIN_ASA_ID),
+            # are we the receivers of the transfer?
+            transfer_tx.receiver() == Global.current_application_address(),
+            # is the txn of type Axfer
+            transfer_tx.type_enum() == TxnType.AssetTransfer
+        )
+    )
     burn_parameters_txn = Gtxn[1]
+    valid_burn_parameters_txn = Assert(
+        And(
+            # does the txn call the correct method
+            burn_parameters_txn.application_args[0] == burn_parameters_selector,
+            # did they call the selector in our contract?
+            burn_parameters_txn.receiver() == Global.current_application_address()
+        )
+    )
+
     valid_burn = Assert(
         And(
             # no funky stuff
@@ -339,6 +358,8 @@ def burn_climatecoins():
     i = ScratchVar(TealType.uint64)
 
     return Seq(
+        valid_transfer_txn,
+        valid_burn_parameters_txn,
         valid_burn,
         # ensure_opted_in(asset_id),
         total_co2_burned.store(Int(0)),
