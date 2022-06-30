@@ -18,6 +18,10 @@ TOTAL_COINS_BURNED = Bytes('total_coins_burned')
 DUMP_APP_ID = Bytes('dump_app_id')
 
 
+# Nft Vars
+CO2_NFT_ASSET_UNIT_NAME = Bytes("CO2")
+
+
 @Subroutine(TealType.none)
 def mint_climate_nft(normalize_fee, note):
     dump_address = Sha512_256(
@@ -29,7 +33,7 @@ def mint_climate_nft(normalize_fee, note):
             {
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2TONNE@ARC69"),
-                TxnField.config_asset_unit_name: Bytes("CO2"),
+                TxnField.config_asset_unit_name: CO2_NFT_ASSET_UNIT_NAME,
                 TxnField.config_asset_total: normalize_fee,
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
@@ -270,7 +274,7 @@ def swap_nft_to_fungible():
             asset_minter.value() == Global.current_application_address(),
             # make sure were using the same asset
             transfer_tx.xfer_asset() == asset_id,
-            asset_unit_name.value() == Bytes("CO2"),  # is it the correct NFT
+            asset_unit_name.value() == CO2_NFT_ASSET_UNIT_NAME,  # is it the correct NFT
             transfer_tx.asset_receiver() == Global.current_application_address(),  # are we receiving the asset fully
             transfer_tx.asset_amount() == asset_supply.value()  # are we sending all the supply
         ))
@@ -365,8 +369,16 @@ def burn_climatecoins():
         total_co2_burned.store(Int(0)),
         For(i.store(Int(0)), i.load() < burn_parameters_txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
             Seq(
+                asset_unit_name := AssetParam.unitName(transfer_tx.xfer_asset()),
+
                 # assert the nft was created by the contract
-                # Assert(Global.current_application_address() == AssetParam.creator(burn_parameters_txn.assets[i.load()])),
+                Assert(
+                    And(
+                        AssetParam.creator(burn_parameters_txn.assets[i.load()]) == Global.current_application_address(),
+                        asset_unit_name.value() == CO2_NFT_ASSET_UNIT_NAME
+                    )
+                ),
+
                 InnerTxnBuilder.Begin(),
                 app_nft_balance := AssetHolding.balance(Global.current_application_address(),
                                                         burn_parameters_txn.assets[i.load()]),
