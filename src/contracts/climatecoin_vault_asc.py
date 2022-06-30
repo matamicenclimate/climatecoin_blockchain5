@@ -57,15 +57,6 @@ def mint_climate_nft(normalize_fee, note):
                 TxnField.fee: Int(0),
             }
         ),
-        InnerTxnBuilder.Next(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetFreeze,
-                TxnField.freeze_asset: InnerTxn.created_asset_id(),
-                TxnField.freeze_asset_frozen: Int(0),
-                TxnField.freeze_asset_account: dump_address,
-            }
-        ),
         InnerTxnBuilder.Submit(),
     )
 
