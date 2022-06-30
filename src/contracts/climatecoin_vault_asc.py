@@ -370,11 +370,12 @@ def burn_climatecoins():
         For(i.store(Int(0)), i.load() < burn_parameters_txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
             Seq(
                 asset_unit_name := AssetParam.unitName(transfer_tx.xfer_asset()),
+                asset_creator := AssetParam.creator(burn_parameters_txn.assets[i.load()]),
 
                 # assert the nft was created by the contract
                 Assert(
                     And(
-                        AssetParam.creator(burn_parameters_txn.assets[i.load()]) == Global.current_application_address(),
+                        asset_creator.value() == Global.current_application_address(),
                         asset_unit_name.value() == CO2_NFT_ASSET_UNIT_NAME
                     )
                 ),
