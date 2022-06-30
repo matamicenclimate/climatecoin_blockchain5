@@ -257,6 +257,8 @@ def swap_nft_to_fungible():
     asset_supply = AssetParam.total(transfer_tx.xfer_asset())
     # ensure the NFT was minted by the contract
     asset_minter = AssetParam.creator(transfer_tx.xfer_asset())
+    # ensure the type of NFT
+    asset_unit_name = AssetParam.unitName(transfer_tx.xfer_asset())
     valid_swap = Assert(
         And(
             # no funny stuff
@@ -268,6 +270,7 @@ def swap_nft_to_fungible():
             asset_minter.value() == Global.current_application_address(),
             # make sure were using the same asset
             transfer_tx.xfer_asset() == asset_id,
+            asset_unit_name.value() == Bytes("CO2"),  # is it the correct NFT
             transfer_tx.asset_receiver() == Global.current_application_address(),  # are we receiving the asset fully
             transfer_tx.asset_amount() == asset_supply.value()  # are we sending all the supply
         ))
@@ -275,6 +278,7 @@ def swap_nft_to_fungible():
     return Seq(
         asset_minter,
         asset_supply,
+        asset_unit_name,
         valid_swap,
         ensure_opted_in(asset_id),
         InnerTxnBuilder.Begin(),
