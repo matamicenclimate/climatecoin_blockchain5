@@ -325,7 +325,7 @@ def burn_climatecoins():
             # did the user send us climatecoins?
             transfer_tx.xfer_asset() == App.globalGet(CLIMATECOIN_ASA_ID),
             # are we the receivers of the transfer?
-            transfer_tx.receiver() == Global.current_application_address(),
+            transfer_tx.asset_receiver() == Global.current_application_address(),
             # is the txn of type Axfer
             transfer_tx.type_enum() == TxnType.AssetTransfer
         )
@@ -336,7 +336,8 @@ def burn_climatecoins():
             # does the txn call the correct method
             burn_parameters_txn.application_args[0] == burn_parameters_selector,
             # did they call the selector in our contract?
-            burn_parameters_txn.receiver() == Global.current_application_address()
+            #burn_parameters_txn.asset_receiver() == Global.current_application_address()
+            # TODO: Preguntar a fer sobre este assert
         )
     )
 
