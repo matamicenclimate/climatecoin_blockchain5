@@ -2,8 +2,10 @@
 # https://github.com/ori-shem-tov/vrf-oracle/blob/vrf-teal5/pyteal/teal5.py
 
 from pyteal import *
+import base64
 
 from src.pyteal_utils import ensure_opted_in, min, div_ceil
+from src.utils import get_burn_contracts
 from src.contracts.climatecoin_dump_asc import do_optin_selector
 
 TEAL_VERSION = 6
@@ -20,6 +22,12 @@ DUMP_APP_ID = Bytes('dump_app_id')
 
 # Nft Vars
 CO2_NFT_ASSET_UNIT_NAME = Bytes("CO2")
+
+
+# Contracts
+burn_app, burn_clear = get_burn_contracts()
+BURN_APP_TEAL = Bytes('base64', burn_app)
+BURN_CLEAR_TEAL = Bytes('base64', burn_clear)
 
 
 @Subroutine(TealType.none)
@@ -298,6 +306,33 @@ def swap_nft_to_fungible():
         Int(1)
     )
 
+burn_deploy_selector = MethodSignature(
+    "burn_deploy()uint64"
+)
+
+
+@Subroutine(TealType.uint64)
+def burn_deploy():
+    return Seq(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.fee: Int(0),
+                TxnField.approval_program: BURN_APP_TEAL,
+                TxnField.clear_state_program: BURN_CLEAR_TEAL,
+                TxnField.on_completion: Int(0),
+                TxnField.global_num_uints: Int(1),
+                TxnField.global_num_byte_slices: Int(0),
+                TxnField.local_num_uints: Int(0),
+                TxnField.local_num_byte_slices: Int(0)
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+        Log(Concat(return_prefix, Itob(InnerTxn.created_application_id()))),
+        Int(1)
+    )
+
 
 burn_parameters_selector = MethodSignature(
     "burn_parameters()uint64"
@@ -370,7 +405,7 @@ def burn_climatecoins():
         total_co2_burned.store(Int(0)),
         For(i.store(Int(0)), i.load() < burn_parameters_txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
             Seq(
-                asset_unit_name := AssetParam.unitName(transfer_tx.xfer_asset()),
+                asset_unit_name := AssetParam.unitName(burn_parameters_txn.assets[i.load()]),
                 asset_creator := AssetParam.creator(burn_parameters_txn.assets[i.load()]),
 
                 # assert the nft was created by the contract
@@ -520,6 +555,7 @@ def contract():
         [Txn.application_args[0] == unfreeze_nft_selector, unfreeze_nft()],
         [And(Txn.application_args[0] == move_selector, from_creator), move()],
         [Txn.application_args[0] == swap_nft_to_fungible_selector, swap_nft_to_fungible()],
+        [And(Txn.application_args[0] == burn_deploy_selector), burn_deploy()],
         [And(Txn.application_args[0] == burn_parameters_selector, from_creator), burn_parameters()],
         [And(Txn.application_args[0] == burn_climatecoins_selector), burn_climatecoins()],
         [And(Txn.application_args[0] == mint_compensation_nft_selector, from_creator), mint_compensation_nft()],

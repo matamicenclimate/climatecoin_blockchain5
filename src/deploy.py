@@ -10,13 +10,14 @@ from sandbox import get_accounts
 from src.contracts.climatecoin_dump_asc import get_dump_approval, get_dump_clear
 
 from src.contracts.climatecoin_vault_asc import get_approval, get_clear
+from src.contracts.climatecoin_burn_asc import get_burn_approval, get_burn_clear
 from src.utils import get_asset_supply, print_asset_holding, get_dummy_metadata, get_asset_holding
 from utils import compile_program, wait_for_confirmation
 
 #
 # Script config
-testnet = True
-delete_on_finish = True
+testnet = False
+delete_on_finish = False
 user_claims_receipt_nft = False
 ########################
 
@@ -31,11 +32,8 @@ if testnet:
     indexer_url = indexer_url_testnet
 
 # this is the one we use in the BE
-#deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
 deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
 # some other random mnemonic
-# deployer_mnemonic = "light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
-#random_user = "know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
 random_user = "page warfare excess stable avocado cushion mean cube prefer farm dog rally human answer amount same ticket speed sadness march jar estate engine abandon poverty"
 random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
 
@@ -49,6 +47,10 @@ with open("src/contracts/climatecoin_vault_asc.json") as f:
 
 with open("src/contracts/climatecoin_dump_asc.json") as f:
     dump_iface = Interface.from_json(f.read())
+
+with open("src/contracts/climatecoin_burn_asc.json") as f:
+    burn_iface = Interface.from_json(f.read())
+
 
 def get_method(i: Interface, name: str) -> Method:
     for m in i.methods:
@@ -88,15 +90,17 @@ def demo():
     print("Using {}".format(user_addr))
 
     #
-    # Create app
+    # Create apps
     vault_app_id = create_app(manager_addr, manager_pk)
     print("Created App with id: {}".format(vault_app_id))
+    #vault_app_id = 96373970
 
     vault_app_addr = logic.get_application_address(vault_app_id)
     print("Application Address: {}".format(vault_app_addr))
 
     dump_app_id = create_dump_app(manager_addr, manager_pk)
     print("Created App with id: {}".format(dump_app_id))
+    #dump_app_id = 96373988
 
     dump_app_addr = logic.get_application_address(dump_app_id)
     print("Dump Application Address: {}".format(dump_app_addr))
@@ -106,10 +110,27 @@ def demo():
         # Setup the smart contract
         sp = client.suggested_params()
         sp.fee = sp.min_fee * 3
-        atc = AtomicTransactionComposer()
+
+        # atc = AtomicTransactionComposer()
+        # atc.add_transaction(
+        #     TransactionWithSigner(
+        #         txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(1), None),
+        #         signer=manager_signer
+        #     )
+        # )
+        # atc.add_method_call(vault_app_id, get_method(iface, "burn_deploy"), manager_addr, sp, manager_signer, [])
+        # result = atc.execute(client, 5)
+        # burn_app_id = result.abi_results[0].return_value
+        # print("Deployed Burn Contract with id {}".format(burn_app_id))
         #
+        # atc = AtomicTransactionComposer()
+        # atc.add_method_call(burn_app_id, get_method(burn_iface, "set_amt"), manager_addr, sp, manager_signer, [12])
+        # result = atc.execute(client, 2)
+
+        atc = AtomicTransactionComposer()
+
         # TODO: how many algos does this cost? do we have to up the fee?
-        # cover for the 2 innerTxns
+        #cover for the 2 innerTxns
         atc.add_transaction(
             TransactionWithSigner(
                 txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(1), None),
@@ -133,6 +154,7 @@ def demo():
         for res in result.abi_results:
             print(res.return_value)
         climatecoin_asa_id = result.abi_results[0].return_value
+        #climatecoin_asa_id = 96374002
 
         #
         # Optin to climatecoin

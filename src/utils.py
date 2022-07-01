@@ -1,5 +1,11 @@
 import base64
 import json
+from algosdk.atomic_transaction_composer import *
+from src.contracts.climatecoin_burn_asc import get_burn_clear, get_burn_approval
+
+token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+url_testnet = "https://node.testnet.algoexplorerapi.io"
+indexer_url_testnet = "https://algoindexer.testnet.algoexplorerapi.io"
 
 def compile_program(algod_client, source_code):
     compile_response = algod_client.compile(source_code)
@@ -60,3 +66,10 @@ def get_dummy_metadata():
     encoded = base64.encodebytes(metadata_json.encode()).decode('ascii')
 
     return metadata_json, encoded
+
+def get_burn_contracts():
+    client = algod.AlgodClient(token, url_testnet)
+    burn_app = client.compile(get_burn_approval())["result"]
+    burn_clear = client.compile(get_burn_approval())["result"]
+
+    return burn_app, burn_clear
