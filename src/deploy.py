@@ -110,22 +110,6 @@ def demo():
         sp = client.suggested_params()
         sp.fee = sp.min_fee * 3
 
-        # atc = AtomicTransactionComposer()
-        # atc.add_transaction(
-        #     TransactionWithSigner(
-        #         txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(1), None),
-        #         signer=manager_signer
-        #     )
-        # )
-        # atc.add_method_call(vault_app_id, get_method(iface, "burn_deploy"), manager_addr, sp, manager_signer, [])
-        # result = atc.execute(client, 5)
-        # burn_app_id = result.abi_results[0].return_value
-        # print("Deployed Burn Contract with id {}".format(burn_app_id))
-        #
-        # atc = AtomicTransactionComposer()
-        # atc.add_method_call(burn_app_id, get_method(burn_iface, "set_amt"), manager_addr, sp, manager_signer, [12])
-        # result = atc.execute(client, 2)
-
         atc = AtomicTransactionComposer()
 
         # TODO: how many algos does this cost? do we have to up the fee?
@@ -264,14 +248,16 @@ def demo():
                 txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn, climatecoin_asa_id), signer=user_signer
             )
         )
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(2+len(minted_nfts)), None),
+                signer=manager_signer
+            )
+        )
         atc.add_method_call(vault_app_id, get_method(iface, "burn_parameters"), manager_addr, sp, manager_signer,
                             foreign_assets=minted_nfts)
         atc.add_method_call(vault_app_id, get_method(iface, "burn_climatecoins"), user_addr, sp, user_signer,
-                            accounts=[dump_app_addr], foreign_assets=minted_nfts)
-
-        metadata_json, encoded = get_dummy_metadata()
-        atc.add_method_call(vault_app_id, get_method(iface, "mint_unverified_compensation_nft"), manager_addr, sp, manager_signer, [dump_app_id],
-                            note=metadata_json.encode())
+                            accounts=[dump_app_addr], foreign_assets=minted_nfts+[climatecoin_asa_id])
         atc.build_group()
         result = atc.execute(client, 4)
         for res in result.abi_results:

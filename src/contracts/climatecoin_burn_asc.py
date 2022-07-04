@@ -1,12 +1,23 @@
 from pyteal import *
 
-amount_key = Bytes("amount")
+USER_ADDRESS_KEY = Bytes("user_add")
+CLIMATECOIN_ASSET_ID_KEY = Bytes("cc_id")
+
+CC_NFT_ASSET_UNIT_NAME = Bytes("CC")
+return_prefix = Bytes("base16", "0x151f7c75")
 
 from_creator = Txn.sender() == Global.creator_address()
+
+
+@Subroutine(TealType.none)
+def set_up():
+    return App.globalPut(USER_ADDRESS_KEY, Txn.accounts[1])
+
+
 router = Router(
     "climatecoin_burn",
     BareCallActions(
-        no_op=OnCompleteAction.create_only(Approve()),
+        no_op=OnCompleteAction.create_only(Seq(set_up(), Approve())),
         delete_application=OnCompleteAction.always(Return(from_creator)),
         update_application=OnCompleteAction.always(Return(from_creator)),
         opt_in=OnCompleteAction.always(Reject()),
@@ -15,11 +26,29 @@ router = Router(
     ),
 )
 
-
 @router.method
-def set_amt(amt: abi.Uint64):
+def opt_in(asset: abi.Asset):
+    asset_unit_name = AssetParam.unitName(asset.asset_id())
+    asset_creator = AssetParam.creator(asset.asset_id())
+
     return Seq(
-        App.globalPut(amount_key, Mul(amt.get(), Int(10))),
+        asset_unit_name,
+        asset_creator,
+        Assert(And(from_creator, asset_creator.value() == Global.creator_address())),
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetTransfer,
+                TxnField.xfer_asset: asset.asset_id(),
+                TxnField.asset_amount: Int(0),
+                TxnField.asset_receiver: Global.current_application_address(),
+                TxnField.fee: Int(0)
+            }
+        ),
+        InnerTxnBuilder.Submit(),
+
+        If(asset_unit_name.value() == CC_NFT_ASSET_UNIT_NAME,
+           App.globalPut(CLIMATECOIN_ASSET_ID_KEY, asset.asset_id()))
     )
 
 

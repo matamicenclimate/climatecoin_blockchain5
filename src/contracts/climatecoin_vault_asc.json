@@ -78,12 +78,6 @@
       "returns": { "type": "void" }
     },
     {
-      "name": "burn_deploy",
-      "desc": "TEST DEPLOY",
-      "args": [],
-      "returns": { "type": "uint64" }
-    },
-    {
       "name": "burn_parameters",
       "desc": "Burn climatecoins to compensate the emissions from an asset",
       "args": [],
