@@ -108,99 +108,6 @@ def mint_developer_nft():
     )
 
 
-mint_unverified_compensation_nft_selector = MethodSignature(
-    "mint_unverified_compensation_nft(application)uint64"
-)
-
-
-@Subroutine(TealType.uint64)
-def mint_unverified_compensation_nft():
-
-    dump_app_id = Txn.application_args[1]
-
-    return Seq(
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetConfig,
-                TxnField.config_asset_name: Bytes("CO2_UNV_COMPENSATION@ARC69"),
-                TxnField.config_asset_unit_name: Bytes("BUYCO2U"),
-                TxnField.config_asset_total: Int(1),
-                TxnField.config_asset_decimals: Int(0),
-                TxnField.config_asset_manager: Global.current_application_address(),
-                TxnField.config_asset_reserve: Global.current_application_address(),
-                TxnField.config_asset_freeze: Global.current_application_address(),
-                TxnField.config_asset_clawback: Global.current_application_address(),
-                TxnField.config_asset_default_frozen: Int(1),
-                TxnField.note: Txn.note()
-            }
-        ),
-        InnerTxnBuilder.Submit(),
-        Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.ApplicationCall,
-                TxnField.application_id: App.globalGet(DUMP_APP_ID),
-                TxnField.application_args: [
-                    do_optin_selector,
-                    Itob(Int(0))
-                ],
-                TxnField.assets: [InnerTxn.created_asset_id()],
-                TxnField.fee: Int(0),
-            }
-        ),
-        InnerTxnBuilder.Submit(),
-        Int(1),
-    )
-
-
-verify_compensation_nft_selector = MethodSignature(
-    "verify_compensation_nft(asset,asset,account,account)void"
-)
-
-
-@Subroutine(TealType.uint64)
-def verify_compensation_nft():
-    unverified_nft_id = Txn.assets[Btoi(Txn.application_args[1])]
-    verified_nft_id = Txn.assets[Btoi(Txn.application_args[2])]
-
-    user_account = Txn.accounts[Btoi(Txn.application_args[3])]
-    dump_address = Txn.accounts[Btoi(Txn.application_args[4])]
-
-    unv_nft_usr_balance = AssetHolding.balance(user_account, unverified_nft_id)
-
-    return Seq(
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetTransfer,
-                TxnField.xfer_asset: verified_nft_id,
-                TxnField.asset_amount: Int(1),
-                TxnField.asset_receiver: user_account,
-            }
-        ),
-        InnerTxnBuilder.Submit(),
-
-        unv_nft_usr_balance,
-        If(unv_nft_usr_balance.value() == Int(1))
-        .Then(move_asset(unverified_nft_id, user_account, dump_address, Int(1)))
-        .Else(move_asset(unverified_nft_id, Global.current_application_address(), dump_address, Int(1))),
-
-        InnerTxnBuilder.Begin(),
-        InnerTxnBuilder.SetFields(
-            {
-                TxnField.type_enum: TxnType.AssetFreeze,
-                TxnField.freeze_asset: unverified_nft_id,
-                TxnField.freeze_asset_frozen: Int(0),
-                TxnField.freeze_asset_account: dump_address,
-            }
-        ),
-        InnerTxnBuilder.Submit(),
-        Int(1),
-    )
-
-
 mint_compensation_nft_selector = MethodSignature(
     "mint_compensation_nft()uint64"
 )
@@ -559,9 +466,6 @@ def contract():
         [And(Txn.application_args[0] == burn_parameters_selector, from_creator), burn_parameters()],
         [And(Txn.application_args[0] == burn_climatecoins_selector), burn_climatecoins()],
         [And(Txn.application_args[0] == mint_compensation_nft_selector, from_creator), mint_compensation_nft()],
-        [And(Txn.application_args[0] == mint_unverified_compensation_nft_selector, from_creator),
-         mint_unverified_compensation_nft()],
-        [And(Txn.application_args[0] == verify_compensation_nft_selector, from_creator), verify_compensation_nft()],
         # setters
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
         [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],

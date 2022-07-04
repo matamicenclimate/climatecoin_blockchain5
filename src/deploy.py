@@ -18,7 +18,6 @@ from utils import compile_program, wait_for_confirmation
 # Script config
 testnet = False
 delete_on_finish = False
-user_claims_receipt_nft = False
 ########################
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -278,45 +277,8 @@ def demo():
         for res in result.abi_results:
             print(res.return_value)
 
-        unv_comp_nft_id = result.abi_results[-1].return_value
-
         print("[ 3 ] Minted nft ids")
         print(minted_nfts)
-
-        if user_claims_receipt_nft:
-            #
-            # User opts-in to the Unverified compensation NFT
-            print(f"[ {iter} ] User optin to Unverified Compensation NFT")
-            sp = client.suggested_params()
-            atc = AtomicTransactionComposer()
-            # Optin to the created NFT
-            atc.add_transaction(
-                TransactionWithSigner(
-                    txn=AssetTransferTxn(user_addr, sp, user_addr, 0, unv_comp_nft_id), signer=user_signer
-                )
-            )
-            result = atc.execute(client, 4)
-            for res in result.abi_results:
-                print(res.return_value)
-
-            #
-            # Move the NFT to the users wallet
-            print(f"[ {iter} ] Manager calling move method")
-            tokens_to_move = get_asset_supply(indexer_client, unv_comp_nft_id)
-            print(tokens_to_move)
-            atc = AtomicTransactionComposer()
-            atc.add_method_call(
-                vault_app_id,
-                get_method(iface, "move"),
-                manager_addr,
-                sp,
-                manager_signer,
-                [unv_comp_nft_id, vault_app_addr, user_addr, tokens_to_move],
-            )
-            result = atc.execute(client, 4)
-            for res in result.abi_results:
-                print(res.return_value)
-            print_asset_holding(indexer_client, user_addr, unv_comp_nft_id, "user - unverified_receipt_nft")
 
         print("[ 3 ] Final balances")
         time.sleep(1.5)  # wait for the indexer to catch up
