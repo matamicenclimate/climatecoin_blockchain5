@@ -83,7 +83,7 @@ router = Router(
 
 
 @router.method
-def approve(compensation_nft: abi.Asset, assetArray: abi.Array):
+def approve(compensation_nft: abi.Asset):
     i = ScratchVar(TealType.uint64)
     return Seq(
         Assert(from_creator),
