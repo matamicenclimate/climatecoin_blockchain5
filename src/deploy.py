@@ -250,18 +250,20 @@ def demo():
         )
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(2+len(minted_nfts)), None),
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(0.2+len(minted_nfts)), None),
                 signer=manager_signer
             )
         )
         atc.add_method_call(vault_app_id, get_method(iface, "burn_parameters"), manager_addr, sp, manager_signer,
                             foreign_assets=minted_nfts)
         atc.add_method_call(vault_app_id, get_method(iface, "burn_climatecoins"), user_addr, sp, user_signer,
-                            accounts=[dump_app_addr], foreign_assets=minted_nfts+[climatecoin_asa_id])
+                            accounts=[dump_app_addr], foreign_assets=minted_nfts+[climatecoin_asa_id], foreign_apps=[dump_app_id])
         atc.build_group()
         result = atc.execute(client, 4)
         for res in result.abi_results:
             print(res.return_value)
+
+        burn_contract_id = result.abi_results[1].tx_info['inner-txns'][0]['application-index']
 
         print("[ 3 ] Minted nft ids")
         print(minted_nfts)
@@ -271,30 +273,30 @@ def demo():
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
         print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
 
-        print("[ 4 ] Minting compensation NFT")
-        atc = AtomicTransactionComposer()
-        metadata_json, encoded = get_dummy_metadata()
-
-        atc.add_method_call(vault_app_id, get_method(iface, "mint_compensation_nft"), manager_addr, sp, manager_signer,
-                            note=metadata_json.encode() )
-        result = atc.execute(client, 4)
-        for res in result.abi_results:
-            print(res.return_value)
+        print("[ 4 ] Approve burn")
+        # atc = AtomicTransactionComposer()
+        # metadata_json, encoded = get_dummy_metadata()
+        #
+        # atc.add_method_call(vault_app_id, get_method(iface, "mint_compensation_nft"), manager_addr, sp, manager_signer,
+        #                     note=metadata_json.encode() )
+        # result = atc.execute(client, 4)
+        # for res in result.abi_results:
+        #     print(res.return_value)
 
         # Verify compensation
-        compensation_nft_id = result.abi_results[0].return_value
+        # compensation_nft_id = result.abi_results[0].return_value
 
         atc = AtomicTransactionComposer()
 
         # User optin to compensation nft
-        atc.add_transaction(
-            TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, compensation_nft_id), signer=user_signer
-            )
-        )
+        # atc.add_transaction(
+        #     TransactionWithSigner(
+        #         txn=AssetTransferTxn(user_addr, sp, user_addr, 0, compensation_nft_id), signer=user_signer
+        #     )
+        # )
 
         # Exchange the temporal nft to the definitive one. Dump the temporal one using a clawback.
-        atc.add_method_call(vault_app_id, get_method(iface, "verify_compensation_nft"), manager_addr, sp, manager_signer, [unv_comp_nft_id, compensation_nft_id, user_addr, dump_app_addr])
+        atc.add_method_call(vault_app_id, get_method(iface, "approve_burn"), manager_addr, sp, manager_signer, [burn_contract_id], foreign_assets=minted_nfts+[climatecoin_asa_id])
 
         atc.execute(client, 4)
 

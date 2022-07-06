@@ -2,6 +2,25 @@
     "name": "climatecoin_burn",
     "methods": [
         {
+            "name": "approve",
+            "args": [
+                {
+                    "type": "asset",
+                    "name": "compensation_nft"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            }
+        },
+        {
+            "name": "reject",
+            "args": [],
+            "returns": {
+                "type": "void"
+            }
+        },
+        {
             "name": "opt_in",
             "args": [
                 {

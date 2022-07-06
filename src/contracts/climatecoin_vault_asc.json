@@ -47,9 +47,11 @@
       "returns": { "name": "developer-nft-id", "type": "uint64" }
     },
     {
-      "name": "mint_compensation_nft",
-      "desc": "mint a compensation NFT after burning climatecoins",
-      "args": [],
+      "name": "approve_burn",
+      "desc": "Approve the burn and mint the compensation NFT",
+      "args": [
+        { "name": "burn_app_id", "type": "application" }
+      ],
       "returns": { "type": "uint64" }
     },
     {
