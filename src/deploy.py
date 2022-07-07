@@ -127,17 +127,16 @@ def demo():
             )
         )
 
-        atc.add_method_call(vault_app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
         atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
         atc.add_method_call(dump_app_id, get_method(dump_iface, "set_vault_app"), manager_addr, sp, manager_signer,
                             [vault_app_id])
+        atc.add_method_call(vault_app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [], foreign_apps=[dump_app_id])
 
         result = atc.execute(client, 4)
         for res in result.abi_results:
             print(res.return_value)
-        climatecoin_asa_id = result.abi_results[0].return_value
-        #climatecoin_asa_id = 96374002
+        climatecoin_asa_id = result.abi_results[2].return_value
 
         #
         # Optin to climatecoin
@@ -296,7 +295,7 @@ def demo():
         # )
 
         # Exchange the temporal nft to the definitive one. Dump the temporal one using a clawback.
-        atc.add_method_call(vault_app_id, get_method(iface, "approve_burn"), manager_addr, sp, manager_signer, [burn_contract_id], foreign_assets=minted_nfts+[climatecoin_asa_id])
+        atc.add_method_call(vault_app_id, get_method(iface, "approve_burn"), manager_addr, sp, manager_signer, [burn_contract_id], foreign_assets=minted_nfts+[climatecoin_asa_id], foreign_apps=[dump_app_id], accounts=[dump_app_addr])
 
         atc.execute(client, 4)
 

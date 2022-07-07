@@ -410,7 +410,9 @@ approve_burn_selector = MethodSignature(
 
 @Subroutine(TealType.uint64)
 def approve_burn():
+    i = ScratchVar(TealType.uint64)
     return Seq(
+        burn_app_add := AppParam.address(App.globalGet(DUMP_APP_ID)),
         mint_compensation_nft(),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.MethodCall(
@@ -421,7 +423,11 @@ def approve_burn():
             ],
             extra_fields={
                 TxnField.fee: Int(0),
+                TxnField.accounts: [burn_app_add.value()]
             }
+        ),
+        For(i.store(Int(0)), i.load() < Txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
+            InnerTxnBuilder.SetField(TxnField.assets, [Txn.assets[i.load()]])
         ),
         InnerTxnBuilder.Submit(),
         Int(1)
@@ -454,8 +460,26 @@ def mint_climatecoin():
         }),
         # Submit the transaction we just built
         InnerTxnBuilder.Submit(),
+
         App.globalPut(CLIMATECOIN_ASA_ID, InnerTxn.created_asset_id()),
         Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
+
+        # Optin of Climatecoin on the dump account
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: App.globalGet(DUMP_APP_ID),
+                TxnField.application_args: [
+                    do_optin_selector,
+                    Itob(Int(0))  # first item in assets array
+                ],
+                TxnField.assets: [InnerTxn.created_asset_id()],
+                # Set fee to 0 so caller has to cover it
+                TxnField.fee: Int(0),
+            }
+        ),
+        InnerTxnBuilder.Submit(),
         Int(1)
     )
 
