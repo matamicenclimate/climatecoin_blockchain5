@@ -50,15 +50,15 @@
       "name": "approve_burn",
       "desc": "Approve the burn and mint the compensation NFT",
       "args": [
-        { "name": "burn_app_id", "type": "application" }
+        { "name": "burn_app_id", "type": "application" },
+        { "name": "compensation_nft_id", "type": "asset" }
       ],
       "returns": { "type": "uint64" }
     },
     {
-      "name": "mint_unverified_compensation_nft",
-      "desc": "mint a temporal compensation NFT after burning climatecoins while the burn is being manually verified",
+      "name": "mint_compensation_nft",
+      "desc": "mint a compensation NFT after burning climatecoins",
       "args": [
-        { "name": "dump_app_id", "type": "application" }
       ],
       "returns": { "type": "uint64" }
     },

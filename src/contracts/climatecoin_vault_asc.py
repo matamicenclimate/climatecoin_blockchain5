@@ -7,6 +7,7 @@ import base64
 from src.pyteal_utils import ensure_opted_in, min, div_ceil
 from src.utils import get_burn_contracts
 from src.contracts.climatecoin_dump_asc import do_optin_selector
+from src.contracts.climatecoin_burn_asc import USER_ADDRESS_KEY
 
 TEAL_VERSION = 6
 
@@ -19,10 +20,9 @@ MINT_FEE = Bytes('nft_mint_fee')
 TOTAL_COINS_BURNED = Bytes('total_coins_burned')
 DUMP_APP_ID = Bytes('dump_app_id')
 
-
 # Nft Vars
 CO2_NFT_ASSET_UNIT_NAME = Bytes("CO2")
-
+COMPENSATION_NFT_ASSET_UNIT_NAME = Bytes("BUYCO2")
 
 # Contracts
 burn_app, burn_clear = get_burn_contracts()
@@ -102,7 +102,7 @@ def mint_developer_nft():
 
     return Seq(
         If(App.globalGet(MINT_FEE) != Int(0))
-            .Then(mint_climate_nft(normalize_fee, Txn.note())),
+        .Then(mint_climate_nft(normalize_fee, Txn.note())),
         mint_climate_nft(normalize_total, Txn.note()),
         Int(1),
     )
@@ -113,7 +113,7 @@ mint_compensation_nft_selector = MethodSignature(
 )
 
 
-@Subroutine(TealType.none)
+@Subroutine(TealType.uint64)
 def mint_compensation_nft():
     return Seq(
         InnerTxnBuilder.Begin(),
@@ -121,7 +121,7 @@ def mint_compensation_nft():
             {
                 TxnField.type_enum: TxnType.AssetConfig,
                 TxnField.config_asset_name: Bytes("CO2_COMPENSATION@ARC69"),
-                TxnField.config_asset_unit_name: Bytes("BUYCO2"),
+                TxnField.config_asset_unit_name: COMPENSATION_NFT_ASSET_UNIT_NAME,
                 TxnField.config_asset_total: Int(1),
                 TxnField.config_asset_decimals: Int(0),
                 TxnField.config_asset_manager: Global.current_application_address(),
@@ -134,7 +134,8 @@ def mint_compensation_nft():
             }
         ),
         InnerTxnBuilder.Submit(),
-        Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id())))
+        Log(Concat(return_prefix, Itob(InnerTxn.created_asset_id()))),
+        Int(1)
     )
 
 
@@ -250,7 +251,7 @@ def burn_climatecoins():
             # does the txn call the correct method
             burn_parameters_txn.application_args[0] == burn_parameters_selector,
             # did they call the selector in our contract?
-            #burn_parameters_txn.asset_receiver() == Global.current_application_address()
+            # burn_parameters_txn.asset_receiver() == Global.current_application_address()
             # TODO: Preguntar a fer sobre este assert
         )
     )
@@ -404,22 +405,35 @@ def burn_climatecoins():
 
 
 approve_burn_selector = MethodSignature(
-    "approve_burn(application)uint64"
+    "approve_burn(application,asset)uint64"
 )
 
 
 @Subroutine(TealType.uint64)
 def approve_burn():
+    burn_app_id = Txn.applications[Btoi(Txn.application_args[1])]
+    compensation_nft_id = Txn.assets[Btoi(Txn.application_args[2])]
+    compensation_nft_creator = AssetParam.creator(compensation_nft_id)
+    compensation_nft_name = AssetParam.unitName(compensation_nft_id)
+    valid_asset = Seq(
+        compensation_nft_creator,
+        compensation_nft_name,
+        Assert(And(
+            compensation_nft_creator.value() == Global.creator_address(),
+            compensation_nft_name.value() == COMPENSATION_NFT_ASSET_UNIT_NAME
+        ))
+    )
     i = ScratchVar(TealType.uint64)
     return Seq(
+        valid_asset,
         burn_app_add := AppParam.address(App.globalGet(DUMP_APP_ID)),
-        mint_compensation_nft(),
+        # mint_compensation_nft(),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.MethodCall(
-            app_id=Txn.applications[Btoi(Txn.application_args[1])],
+            app_id=burn_app_id,
             method_signature="approve(asset)void",
             args=[
-                InnerTxn.created_asset_id()
+                compensation_nft_id
             ],
             extra_fields={
                 TxnField.fee: Int(0),
@@ -428,6 +442,17 @@ def approve_burn():
         ),
         For(i.store(Int(0)), i.load() < Txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
             InnerTxnBuilder.SetField(TxnField.assets, [Txn.assets[i.load()]])
+        ),
+        InnerTxnBuilder.Next(),
+        user_address := App.globalGetEx(burn_app_id, USER_ADDRESS_KEY),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum: TxnType.AssetTransfer,
+                TxnField.xfer_asset: compensation_nft_id,
+                TxnField.asset_amount: Int(1),
+                TxnField.asset_sender: Global.current_application_address(),
+                TxnField.asset_receiver: user_address.value(),
+            }
         ),
         InnerTxnBuilder.Submit(),
         Int(1)
@@ -567,6 +592,7 @@ def contract():
         [And(Txn.application_args[0] == burn_parameters_selector, from_creator), burn_parameters()],
         [And(Txn.application_args[0] == burn_climatecoins_selector), burn_climatecoins()],
         [And(Txn.application_args[0] == approve_burn_selector, from_creator), approve_burn()],
+        [And(Txn.application_args[0] == mint_compensation_nft_selector, from_creator), mint_compensation_nft()],
         # setters
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
         [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],

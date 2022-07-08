@@ -273,29 +273,33 @@ def demo():
         print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
 
         print("[ 4 ] Approve burn")
-        # atc = AtomicTransactionComposer()
-        # metadata_json, encoded = get_dummy_metadata()
-        #
-        # atc.add_method_call(vault_app_id, get_method(iface, "mint_compensation_nft"), manager_addr, sp, manager_signer,
-        #                     note=metadata_json.encode() )
-        # result = atc.execute(client, 4)
-        # for res in result.abi_results:
-        #     print(res.return_value)
+        atc = AtomicTransactionComposer()
+        metadata_json, encoded = get_dummy_metadata()
 
-        # Verify compensation
-        # compensation_nft_id = result.abi_results[0].return_value
+        atc.add_method_call(vault_app_id, get_method(iface, "mint_compensation_nft"), manager_addr, sp, manager_signer,
+                            note=metadata_json.encode() )
+        result = atc.execute(client, 4)
+        for res in result.abi_results:
+            print(res.return_value)
+
+        compensation_nft_id = result.abi_results[0].return_value
 
         atc = AtomicTransactionComposer()
 
         # User optin to compensation nft
-        # atc.add_transaction(
-        #     TransactionWithSigner(
-        #         txn=AssetTransferTxn(user_addr, sp, user_addr, 0, compensation_nft_id), signer=user_signer
-        #     )
-        # )
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, compensation_nft_id), signer=user_signer
+            )
+        )
 
-        # Exchange the temporal nft to the definitive one. Dump the temporal one using a clawback.
-        atc.add_method_call(vault_app_id, get_method(iface, "approve_burn"), manager_addr, sp, manager_signer, [burn_contract_id], foreign_assets=minted_nfts+[climatecoin_asa_id], foreign_apps=[dump_app_id], accounts=[dump_app_addr])
+        # Approve the burn
+        atc.add_method_call(vault_app_id, get_method(iface, "approve_burn"),
+                            manager_addr, sp, manager_signer,
+                            [burn_contract_id, compensation_nft_id],
+                            foreign_assets=minted_nfts+[climatecoin_asa_id],
+                            foreign_apps=[dump_app_id],
+                            accounts=[dump_app_addr, user_addr])
 
         atc.execute(client, 4)
 
