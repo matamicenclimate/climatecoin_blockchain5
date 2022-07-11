@@ -419,7 +419,7 @@ def approve_burn():
         compensation_nft_creator,
         compensation_nft_name,
         Assert(And(
-            compensation_nft_creator.value() == Global.creator_address(),
+            compensation_nft_creator.value() == Global.current_application_address(),
             compensation_nft_name.value() == COMPENSATION_NFT_ASSET_UNIT_NAME
         ))
     )
@@ -427,19 +427,17 @@ def approve_burn():
     return Seq(
         valid_asset,
         burn_app_add := AppParam.address(App.globalGet(DUMP_APP_ID)),
-        # mint_compensation_nft(),
         InnerTxnBuilder.Begin(),
         InnerTxnBuilder.MethodCall(
             app_id=burn_app_id,
-            method_signature="approve(asset)void",
-            args=[
-                compensation_nft_id
-            ],
+            method_signature="approve()void",
+            args=[],
             extra_fields={
                 TxnField.fee: Int(0),
                 TxnField.accounts: [burn_app_add.value()]
             }
         ),
+        # TODO: Chore con https://github.com/algorand/pyteal/pull/384
         For(i.store(Int(0)), i.load() < Txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
             InnerTxnBuilder.SetField(TxnField.assets, [Txn.assets[i.load()]])
         ),

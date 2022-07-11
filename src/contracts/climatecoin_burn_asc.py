@@ -5,6 +5,7 @@ DUMP_ADDRESS_KEY = Bytes("dump_add")
 CLIMATECOIN_ASSET_ID_KEY = Bytes("cc_id")
 
 CC_NFT_ASSET_UNIT_NAME = Bytes("CC")
+COMPENSATION_NFT_ASSET_UNIT_NAME = Bytes("BUYCO2")
 return_prefix = Bytes("base16", "0x151f7c75")
 
 from_creator = Txn.sender() == Global.creator_address()
@@ -83,16 +84,17 @@ router = Router(
 
 
 @router.method
-def approve(compensation_nft: abi.Asset):
+def approve():
     i = ScratchVar(TealType.uint64)
     return Seq(
         Assert(from_creator),
         For(i.store(Int(0)), i.load() < Txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
             Seq(
-                If(Txn.assets[i.load()] == compensation_nft.asset_id())
+                asset_unit_name := AssetParam.unitName(Txn.assets[i.load()]),
+                If(asset_unit_name.value() == COMPENSATION_NFT_ASSET_UNIT_NAME)
                 .Then(
                     Seq(
-                        do_optin(compensation_nft.asset_id()),
+                        do_optin(Txn.assets[i.load()]),
                         close_asset(Txn.assets[i.load()], Global.creator_address())
                     )
                 )
@@ -159,3 +161,5 @@ if __name__ == "__main__":
         f.write(json.dumps(contract.dictify(), indent=4))
 
     print(approval)
+    print("-------")
+    print(clear)

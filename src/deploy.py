@@ -16,7 +16,7 @@ from utils import compile_program, wait_for_confirmation
 
 #
 # Script config
-testnet = False
+testnet = True
 delete_on_finish = False
 ########################
 
@@ -353,7 +353,7 @@ def create_app(addr, pk):
     local_schema = StateSchema(0, 0)
 
     # Create the transaction
-    create_txn = ApplicationCreateTxn(addr, sp, 0, approval_program, clear_program, global_schema, local_schema)
+    create_txn = ApplicationCreateTxn(addr, sp, 0, approval_program, clear_program, global_schema, local_schema, extra_pages=1)
 
     # Sign it
     signed_txn = create_txn.sign(pk)

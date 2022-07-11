@@ -3,12 +3,7 @@
     "methods": [
         {
             "name": "approve",
-            "args": [
-                {
-                    "type": "asset",
-                    "name": "compensation_nft"
-                }
-            ],
+            "args": [],
             "returns": {
                 "type": "void"
             }
