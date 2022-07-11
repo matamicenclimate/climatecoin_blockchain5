@@ -13,12 +13,16 @@ from src.contracts.climatecoin_vault_asc import get_approval, get_clear
 from src.utils import get_asset_supply, print_asset_holding, get_dummy_metadata, get_asset_holding
 from utils import compile_program, wait_for_confirmation
 
-#
-# Script config
+#################
+# SCRIPT CONFIG #
+#################
 testnet = True
+# delete the contracts when the script is done
 delete_on_finish = False
+# abort script after deploying and setting up the contracts
+only_deploy = True
 approve_burn = False
-########################
+#################
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 url = "http://localhost:4001"
@@ -114,13 +118,13 @@ def demo():
         # cover account minimum algo balance to operate
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(1), None),
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(10), None),
                 signer=manager_signer
             )
         )
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(1), None),
+                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(10), None),
                 signer=manager_signer
             )
         )
@@ -135,6 +139,11 @@ def demo():
         for res in result.abi_results:
             print(res.return_value)
         climatecoin_asa_id = result.abi_results[2].return_value
+
+        if only_deploy:
+            print(f"BACK:\n\nAPP_ID={vault_app_id}\nDUMP_APP_ID={dump_app_id}\nCLIMATECOIN_ASA_ID={climatecoin_asa_id}"
+                  f"\n\n\nFRONT:\n\nREACT_APP_CLIMATECOIN_ASA_ID={climatecoin_asa_id}\nREACT_APP_SMART_CONTRACT_ID={vault_app_id}")
+            raise Exception("Script halted after initial setup")
 
         #
         # Optin to climatecoin
