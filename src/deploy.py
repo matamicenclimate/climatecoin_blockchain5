@@ -120,13 +120,13 @@ def demo():
         # cover for the 2 innerTxns
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(1), None),
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(10), None),
                 signer=manager_signer
             )
         )
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(1), None),
+                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(10), None),
                 signer=manager_signer
             )
         )
