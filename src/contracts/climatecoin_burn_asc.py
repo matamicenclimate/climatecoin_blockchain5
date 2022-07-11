@@ -19,6 +19,7 @@ def set_up():
     )
 
 
+# Close account and send remaining Algos to Vault app
 @Subroutine(TealType.none)
 def close_app():
     return Seq(
@@ -49,6 +50,7 @@ def send_asset(asset_id, receiver_add, amount):
     )
 
 
+# Remove asset from account and send remaining balance to an address
 @Subroutine(TealType.none)
 def close_asset(asset_id, receiver_add):
     return Seq(
@@ -83,6 +85,7 @@ router = Router(
 )
 
 
+# Approve burn, send assets to burn and close the contract
 @router.method
 def approve():
     i = ScratchVar(TealType.uint64)
@@ -105,6 +108,7 @@ def approve():
     )
 
 
+# Reject burn, return assets to their owners and close the contract
 @router.method
 def reject():
     i = ScratchVar(TealType.uint64)

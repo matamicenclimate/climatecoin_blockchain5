@@ -415,6 +415,7 @@ def approve_burn():
     compensation_nft_id = Txn.assets[Btoi(Txn.application_args[2])]
     compensation_nft_creator = AssetParam.creator(compensation_nft_id)
     compensation_nft_name = AssetParam.unitName(compensation_nft_id)
+    # Check if the compensation NFT received is valid
     valid_asset = Seq(
         compensation_nft_creator,
         compensation_nft_name,
@@ -428,6 +429,7 @@ def approve_burn():
         valid_asset,
         burn_app_add := AppParam.address(App.globalGet(DUMP_APP_ID)),
         InnerTxnBuilder.Begin(),
+        # Call burn contract to approve the burn, send NFTs + CC to burn and close the contract
         InnerTxnBuilder.MethodCall(
             app_id=burn_app_id,
             method_signature="approve()void",
@@ -443,6 +445,7 @@ def approve_burn():
         ),
         InnerTxnBuilder.Next(),
         user_address := App.globalGetEx(burn_app_id, USER_ADDRESS_KEY),
+        # Send the compensation NFT to the user address
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetTransfer,
@@ -470,6 +473,7 @@ def reject_burn():
         burn_app_add := AppParam.address(App.globalGet(DUMP_APP_ID)),
         user_address := App.globalGetEx(burn_app_id, USER_ADDRESS_KEY),
         InnerTxnBuilder.Begin(),
+        # Call burn contract to reject the burn, send assets to their owners and close the contract
         InnerTxnBuilder.MethodCall(
             app_id=burn_app_id,
             method_signature="reject()void",

@@ -10,7 +10,6 @@ from sandbox import get_accounts
 from src.contracts.climatecoin_dump_asc import get_dump_approval, get_dump_clear
 
 from src.contracts.climatecoin_vault_asc import get_approval, get_clear
-from src.contracts.climatecoin_burn_asc import get_burn_approval, get_burn_clear
 from src.utils import get_asset_supply, print_asset_holding, get_dummy_metadata, get_asset_holding
 from utils import compile_program, wait_for_confirmation
 
@@ -93,14 +92,12 @@ def demo():
     # Create apps
     vault_app_id = create_app(manager_addr, manager_pk)
     print("Created App with id: {}".format(vault_app_id))
-    #vault_app_id = 96373970
 
     vault_app_addr = logic.get_application_address(vault_app_id)
     print("Application Address: {}".format(vault_app_addr))
 
     dump_app_id = create_dump_app(manager_addr, manager_pk)
     print("Created App with id: {}".format(dump_app_id))
-    #dump_app_id = 96373988
 
     dump_app_addr = logic.get_application_address(dump_app_id)
     print("Dump Application Address: {}".format(dump_app_addr))
@@ -114,7 +111,7 @@ def demo():
         atc = AtomicTransactionComposer()
 
         # TODO: how many algos does this cost? do we have to up the fee?
-        #cover for the 2 innerTxns
+        # cover account minimum algo balance to operate
         atc.add_transaction(
             TransactionWithSigner(
                 txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(1), None),
@@ -248,6 +245,7 @@ def demo():
                 txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn, climatecoin_asa_id), signer=user_signer
             )
         )
+        # Send algos needed for the burn contract app to operate
         atc.add_transaction(
             TransactionWithSigner(
                 txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(0.2+len(minted_nfts)), None),
@@ -305,6 +303,7 @@ def demo():
 
             atc.execute(client, 4)
         else:
+            print("[ 4 ] Reject burn")
             atc = AtomicTransactionComposer()
 
             # Reject the burn
