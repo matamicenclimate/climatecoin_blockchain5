@@ -143,6 +143,8 @@ def demo():
         climatecoin_asa_id = result.abi_results[0].return_value
 
         if only_deploy:
+            print(f"BACK:\n\nAPP_ID={vault_app_id}\nDUMP_APP_ID={dump_app_id}\nCLIMATECOIN_ASA_ID={climatecoin_asa_id}"
+                  f"\n\n\nFRONT:\n\nREACT_APP_CLIMATECOIN_ASA_ID={climatecoin_asa_id}\nREACT_APP_SMART_CONTRACT_ID={vault_app_id}")
             raise Exception("Script halted after initial setup")
 
         #
