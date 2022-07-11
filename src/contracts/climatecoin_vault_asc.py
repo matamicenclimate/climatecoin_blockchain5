@@ -457,6 +457,37 @@ def approve_burn():
     )
 
 
+reject_burn_selector = MethodSignature(
+    "reject_burn(application)uint64"
+)
+
+
+@Subroutine(TealType.uint64)
+def reject_burn():
+    burn_app_id = Txn.applications[Btoi(Txn.application_args[1])]
+    i = ScratchVar(TealType.uint64)
+    return Seq(
+        burn_app_add := AppParam.address(App.globalGet(DUMP_APP_ID)),
+        user_address := App.globalGetEx(burn_app_id, USER_ADDRESS_KEY),
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.MethodCall(
+            app_id=burn_app_id,
+            method_signature="reject()void",
+            args=[],
+            extra_fields={
+                TxnField.fee: Int(0),
+                TxnField.accounts: [burn_app_add.value(), user_address.value()]
+            }
+        ),
+        # TODO: Chore con https://github.com/algorand/pyteal/pull/384
+        For(i.store(Int(0)), i.load() < Txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
+            InnerTxnBuilder.SetField(TxnField.assets, [Txn.assets[i.load()]])
+        ),
+        InnerTxnBuilder.Submit(),
+        Int(1)
+    )
+
+
 mint_climatecoin_selector = MethodSignature(
     "mint_climatecoin()uint64"
 )
@@ -590,6 +621,7 @@ def contract():
         [And(Txn.application_args[0] == burn_parameters_selector, from_creator), burn_parameters()],
         [And(Txn.application_args[0] == burn_climatecoins_selector), burn_climatecoins()],
         [And(Txn.application_args[0] == approve_burn_selector, from_creator), approve_burn()],
+        [And(Txn.application_args[0] == reject_burn_selector, from_creator), reject_burn()],
         [And(Txn.application_args[0] == mint_compensation_nft_selector, from_creator), mint_compensation_nft()],
         # setters
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],

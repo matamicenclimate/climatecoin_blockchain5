@@ -48,10 +48,18 @@
     },
     {
       "name": "approve_burn",
-      "desc": "Approve the burn and mint the compensation NFT",
+      "desc": "Approve the burn and send the compensation NFT",
       "args": [
         { "name": "burn_app_id", "type": "application" },
         { "name": "compensation_nft_id", "type": "asset" }
+      ],
+      "returns": { "type": "uint64" }
+    },
+    {
+      "name": "reject_burn",
+      "desc": "Reject the burn",
+      "args": [
+        { "name": "burn_app_id", "type": "application" }
       ],
       "returns": { "type": "uint64" }
     },
