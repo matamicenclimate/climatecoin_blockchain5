@@ -129,11 +129,15 @@ def reject():
 def opt_in(asset: abi.Asset):
     asset_unit_name = AssetParam.unitName(asset.asset_id())
     asset_creator = AssetParam.creator(asset.asset_id())
+    check_asset_valid = Assert(And(
+        from_creator,
+        asset_creator.value() == Global.creator_address()
+    ))
 
     return Seq(
         asset_unit_name,
         asset_creator,
-        Assert(And(from_creator, asset_creator.value() == Global.creator_address())),
+        check_asset_valid,
         do_optin(asset.asset_id()),
 
         If(asset_unit_name.value() == CC_NFT_ASSET_UNIT_NAME,
