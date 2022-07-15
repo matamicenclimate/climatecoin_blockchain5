@@ -101,6 +101,8 @@ def approve():
                         close_asset(Txn.assets[i.load()], Global.creator_address())
                     )
                 )
+                .ElseIf(Txn.assets[i.load()] == App.globalGet(CLIMATECOIN_ASSET_ID_KEY))
+                .Then(close_asset(Txn.assets[i.load()], Global.creator_address()))
                 .Else(close_asset(Txn.assets[i.load()], App.globalGet(DUMP_ADDRESS_KEY)))
             )
         ),

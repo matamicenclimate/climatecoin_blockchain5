@@ -118,13 +118,13 @@ def demo():
         # cover account minimum algo balance to operate
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(10), None),
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(10 if only_deploy else 1), None),
                 signer=manager_signer
             )
         )
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(10), None),
+                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(10 if only_deploy else 1), None),
                 signer=manager_signer
             )
         )
@@ -257,7 +257,7 @@ def demo():
         # Send algos needed for the burn contract app to operate
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(0.2+len(minted_nfts)), None),
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos((2+len(minted_nfts))*0.1), None),
                 signer=manager_signer
             )
         )
