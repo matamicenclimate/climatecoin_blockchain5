@@ -21,7 +21,7 @@ testnet = True
 delete_on_finish = False
 # abort script after deploying and setting up the contracts
 only_deploy = True
-user_claims_receipt_nft = False
+approve_burn = False
 #################
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -35,15 +35,8 @@ if testnet:
     indexer_url = indexer_url_testnet
 
 # this is the one we use in the BE
-#deployer_mnemonic = "reward remove stairs topic disorder town prison town angry gas tray home obvious biology distance belt champion human rotate coin antique gospel grit ability game"
-# deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
+deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
 # some other random mnemonic
-# deployer_mnemonic = "light tent note stool aware mother nice impulse chair tobacco rib mountain roof key crystal author sail rural divide labor session sleep neutral absorb useful"
-
-# staging ONLY
-deployer_mnemonic = "claim long sun pipe simple brick essay detail dash mass dose puzzle cash dream job invite motor casino rally vote honey grid simple able mystery"
-
-#random_user = "know tag story install insect good diagram crumble drop impact brush trash review endless border timber reflect machine ship pig sample ugly salad about act"
 random_user = "page warfare excess stable avocado cushion mean cube prefer farm dog rally human answer amount same ticket speed sadness march jar estate engine abandon poverty"
 random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
 
@@ -57,6 +50,10 @@ with open("src/contracts/climatecoin_vault_asc.json") as f:
 
 with open("src/contracts/climatecoin_dump_asc.json") as f:
     dump_iface = Interface.from_json(f.read())
+
+with open("src/contracts/climatecoin_burn_asc.json") as f:
+    burn_iface = Interface.from_json(f.read())
+
 
 def get_method(i: Interface, name: str) -> Method:
     for m in i.methods:
@@ -96,7 +93,7 @@ def demo():
     print("Using {}".format(user_addr))
 
     #
-    # Create app
+    # Create apps
     vault_app_id = create_app(manager_addr, manager_pk)
     print("Created App with id: {}".format(vault_app_id))
 
@@ -114,33 +111,34 @@ def demo():
         # Setup the smart contract
         sp = client.suggested_params()
         sp.fee = sp.min_fee * 3
+
         atc = AtomicTransactionComposer()
-        #
+
         # TODO: how many algos does this cost? do we have to up the fee?
-        # cover for the 2 innerTxns
+        # cover account minimum algo balance to operate
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(10), None),
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(10 if only_deploy else 1), None),
                 signer=manager_signer
             )
         )
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(10), None),
+                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(10 if only_deploy else 1), None),
                 signer=manager_signer
             )
         )
 
-        atc.add_method_call(vault_app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [])
         atc.add_method_call(vault_app_id, get_method(iface, "set_dump"), manager_addr, sp, manager_signer,
                             [dump_app_id])
         atc.add_method_call(dump_app_id, get_method(dump_iface, "set_vault_app"), manager_addr, sp, manager_signer,
                             [vault_app_id])
+        atc.add_method_call(vault_app_id, get_method(iface, "mint_climatecoin"), manager_addr, sp, manager_signer, [], foreign_apps=[dump_app_id])
 
         result = atc.execute(client, 4)
         for res in result.abi_results:
             print(res.return_value)
-        climatecoin_asa_id = result.abi_results[0].return_value
+        climatecoin_asa_id = result.abi_results[2].return_value
 
         if only_deploy:
             print(f"BACK:\n\nAPP_ID={vault_app_id}\nDUMP_APP_ID={dump_app_id}\nCLIMATECOIN_ASA_ID={climatecoin_asa_id}"
@@ -256,90 +254,76 @@ def demo():
                 txn=AssetTransferTxn(user_addr, sp, vault_app_addr, climatecoins_to_burn, climatecoin_asa_id), signer=user_signer
             )
         )
+        # Send algos needed for the burn contract app to operate
+        atc.add_transaction(
+            TransactionWithSigner(
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos((2+len(minted_nfts))*0.1), None),
+                signer=manager_signer
+            )
+        )
         atc.add_method_call(vault_app_id, get_method(iface, "burn_parameters"), manager_addr, sp, manager_signer,
                             foreign_assets=minted_nfts)
         atc.add_method_call(vault_app_id, get_method(iface, "burn_climatecoins"), user_addr, sp, user_signer,
-                            accounts=[dump_app_addr], foreign_assets=minted_nfts)
-
-        metadata_json, encoded = get_dummy_metadata()
-        atc.add_method_call(vault_app_id, get_method(iface, "mint_unverified_compensation_nft"), manager_addr, sp, manager_signer, [dump_app_id],
-                            note=metadata_json.encode())
+                            accounts=[dump_app_addr], foreign_assets=minted_nfts+[climatecoin_asa_id], foreign_apps=[dump_app_id])
         atc.build_group()
         result = atc.execute(client, 4)
         for res in result.abi_results:
             print(res.return_value)
 
-        unv_comp_nft_id = result.abi_results[-1].return_value
+        burn_contract_id = result.abi_results[1].tx_info['inner-txns'][0]['application-index']
 
         print("[ 3 ] Minted nft ids")
         print(minted_nfts)
-
-        if user_claims_receipt_nft:
-            #
-            # User opts-in to the Unverified compensation NFT
-            print(f"[ {iter} ] User optin to Unverified Compensation NFT")
-            sp = client.suggested_params()
-            atc = AtomicTransactionComposer()
-            # Optin to the created NFT
-            atc.add_transaction(
-                TransactionWithSigner(
-                    txn=AssetTransferTxn(user_addr, sp, user_addr, 0, unv_comp_nft_id), signer=user_signer
-                )
-            )
-            result = atc.execute(client, 4)
-            for res in result.abi_results:
-                print(res.return_value)
-
-            #
-            # Move the NFT to the users wallet
-            print(f"[ {iter} ] Manager calling move method")
-            tokens_to_move = get_asset_supply(indexer_client, unv_comp_nft_id)
-            print(tokens_to_move)
-            atc = AtomicTransactionComposer()
-            atc.add_method_call(
-                vault_app_id,
-                get_method(iface, "move"),
-                manager_addr,
-                sp,
-                manager_signer,
-                [unv_comp_nft_id, vault_app_addr, user_addr, tokens_to_move],
-            )
-            result = atc.execute(client, 4)
-            for res in result.abi_results:
-                print(res.return_value)
-            print_asset_holding(indexer_client, user_addr, unv_comp_nft_id, "user - unverified_receipt_nft")
 
         print("[ 3 ] Final balances")
         time.sleep(1.5)  # wait for the indexer to catch up
         print_asset_holding(indexer_client, user_addr, climatecoin_asa_id, "user - climatecoin")
         print_asset_holding(indexer_client, vault_app_addr, climatecoin_asa_id, "app - climatecoin")
 
-        print("[ 4 ] Minting compensation NFT")
-        atc = AtomicTransactionComposer()
-        metadata_json, encoded = get_dummy_metadata()
+        if approve_burn:
+            print("[ 4 ] Approve burn")
+            atc = AtomicTransactionComposer()
+            metadata_json, encoded = get_dummy_metadata()
 
-        atc.add_method_call(vault_app_id, get_method(iface, "mint_compensation_nft"), manager_addr, sp, manager_signer,
-                            note=metadata_json.encode() )
-        result = atc.execute(client, 4)
-        for res in result.abi_results:
-            print(res.return_value)
+            atc.add_method_call(vault_app_id, get_method(iface, "mint_compensation_nft"), manager_addr, sp, manager_signer,
+                                note=metadata_json.encode() )
+            result = atc.execute(client, 4)
+            for res in result.abi_results:
+                print(res.return_value)
 
-        # Verify compensation
-        compensation_nft_id = result.abi_results[0].return_value
+            compensation_nft_id = result.abi_results[0].return_value
 
-        atc = AtomicTransactionComposer()
+            atc = AtomicTransactionComposer()
 
-        # User optin to compensation nft
-        atc.add_transaction(
-            TransactionWithSigner(
-                txn=AssetTransferTxn(user_addr, sp, user_addr, 0, compensation_nft_id), signer=user_signer
+            # User optin to compensation nft
+            atc.add_transaction(
+                TransactionWithSigner(
+                    txn=AssetTransferTxn(user_addr, sp, user_addr, 0, compensation_nft_id), signer=user_signer
+                )
             )
-        )
 
-        # Exchange the temporal nft to the definitive one. Dump the temporal one using a clawback.
-        atc.add_method_call(vault_app_id, get_method(iface, "verify_compensation_nft"), manager_addr, sp, manager_signer, [unv_comp_nft_id, compensation_nft_id, user_addr, dump_app_addr])
+            # Approve the burn
+            atc.add_method_call(vault_app_id, get_method(iface, "approve_burn"),
+                                manager_addr, sp, manager_signer,
+                                [burn_contract_id, compensation_nft_id],
+                                foreign_assets=minted_nfts+[climatecoin_asa_id],
+                                foreign_apps=[dump_app_id],
+                                accounts=[dump_app_addr, user_addr])
 
-        atc.execute(client, 4)
+            atc.execute(client, 4)
+        else:
+            print("[ 4 ] Reject burn")
+            atc = AtomicTransactionComposer()
+
+            # Reject the burn
+            atc.add_method_call(vault_app_id, get_method(iface, "reject_burn"),
+                                manager_addr, sp, manager_signer,
+                                [burn_contract_id],
+                                foreign_assets=minted_nfts + [climatecoin_asa_id],
+                                foreign_apps=[dump_app_id],
+                                accounts=[dump_app_addr, user_addr])
+
+            atc.execute(client, 4)
 
         for i in range(len(minted_nfts)):
             nft_id = minted_nfts[i]
@@ -391,7 +375,7 @@ def create_app(addr, pk):
     local_schema = StateSchema(0, 0)
 
     # Create the transaction
-    create_txn = ApplicationCreateTxn(addr, sp, 0, approval_program, clear_program, global_schema, local_schema)
+    create_txn = ApplicationCreateTxn(addr, sp, 0, approval_program, clear_program, global_schema, local_schema, extra_pages=1)
 
     # Sign it
     signed_txn = create_txn.sign(pk)

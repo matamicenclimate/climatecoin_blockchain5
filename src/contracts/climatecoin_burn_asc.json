@@ -1,0 +1,33 @@
+{
+    "name": "climatecoin_burn",
+    "methods": [
+        {
+            "name": "approve",
+            "args": [],
+            "returns": {
+                "type": "void"
+            }
+        },
+        {
+            "name": "reject",
+            "args": [],
+            "returns": {
+                "type": "void"
+            }
+        },
+        {
+            "name": "opt_in",
+            "args": [
+                {
+                    "type": "asset",
+                    "name": "asset"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            }
+        }
+    ],
+    "desc": null,
+    "networks": {}
+}
