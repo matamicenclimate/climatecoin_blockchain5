@@ -36,6 +36,8 @@ if testnet:
 
 # this is the one we use in the BE
 deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
+deployer_mnemonic = "claim long sun pipe simple brick essay detail dash mass dose puzzle cash dream job invite motor casino rally vote honey grid simple able mystery"
+print(f"REMEMBER USING BACKEND NEUMONIC {deployer_mnemonic}")
 # some other random mnemonic
 random_user = "page warfare excess stable avocado cushion mean cube prefer farm dog rally human answer amount same ticket speed sadness march jar estate engine abandon poverty"
 random_user_ONLY_ONCE = "laptop pink throw human job expect talent december erase base entry wear exile degree hole argue float under giraffe bid fold only shine above tooth"
@@ -118,13 +120,13 @@ def demo():
         # cover account minimum algo balance to operate
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(10 if only_deploy else 1), None),
+                txn=PaymentTxn(manager_addr, sp, vault_app_addr, util.algos_to_microalgos(30 if only_deploy else 1), None),
                 signer=manager_signer
             )
         )
         atc.add_transaction(
             TransactionWithSigner(
-                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(10 if only_deploy else 1), None),
+                txn=PaymentTxn(manager_addr, sp, dump_app_addr, util.algos_to_microalgos(30 if only_deploy else 1), None),
                 signer=manager_signer
             )
         )
@@ -295,6 +297,18 @@ def demo():
 
             atc = AtomicTransactionComposer()
 
+            # Approve the burn
+            atc.add_method_call(vault_app_id, get_method(iface, "approve_burn"),
+                                manager_addr, sp, manager_signer,
+                                [burn_contract_id, compensation_nft_id],
+                                foreign_assets=minted_nfts+[climatecoin_asa_id],
+                                foreign_apps=[dump_app_id],
+                                accounts=[dump_app_addr, user_addr])
+
+            atc.execute(client, 4)
+
+            atc = AtomicTransactionComposer()
+
             # User optin to compensation nft
             atc.add_transaction(
                 TransactionWithSigner(
@@ -303,12 +317,10 @@ def demo():
             )
 
             # Approve the burn
-            atc.add_method_call(vault_app_id, get_method(iface, "approve_burn"),
+            atc.add_method_call(vault_app_id, get_method(iface, "send_burn_nft_certificate"),
                                 manager_addr, sp, manager_signer,
                                 [burn_contract_id, compensation_nft_id],
-                                foreign_assets=minted_nfts+[climatecoin_asa_id],
-                                foreign_apps=[dump_app_id],
-                                accounts=[dump_app_addr, user_addr])
+                                accounts=[user_addr])
 
             atc.execute(client, 4)
         else:

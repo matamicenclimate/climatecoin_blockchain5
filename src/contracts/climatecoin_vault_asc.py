@@ -443,7 +443,33 @@ def approve_burn():
         For(i.store(Int(0)), i.load() < Txn.assets.length(), i.store(Add(i.load(), Int(1)))).Do(
             InnerTxnBuilder.SetField(TxnField.assets, [Txn.assets[i.load()]])
         ),
-        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.Submit(),
+        Int(1)
+    )
+
+send_burn_nft_certificate_selector = MethodSignature(
+    "send_burn_nft_certificate(application,asset)uint64"
+)
+
+
+@Subroutine(TealType.uint64)
+def send_burn_nft_certificate():
+    burn_app_id = Txn.applications[Btoi(Txn.application_args[1])]
+    compensation_nft_id = Txn.assets[Btoi(Txn.application_args[2])]
+    compensation_nft_creator = AssetParam.creator(compensation_nft_id)
+    compensation_nft_name = AssetParam.unitName(compensation_nft_id)
+    # Check if the compensation NFT received is valid
+    valid_asset = Seq(
+        compensation_nft_creator,
+        compensation_nft_name,
+        Assert(And(
+            compensation_nft_creator.value() == Global.current_application_address(),
+            compensation_nft_name.value() == COMPENSATION_NFT_ASSET_UNIT_NAME
+        ))
+    )
+    return Seq(
+        valid_asset,
+        InnerTxnBuilder.Begin(),
         user_address := App.globalGetEx(burn_app_id, USER_ADDRESS_KEY),
         # Send the compensation NFT to the user address
         InnerTxnBuilder.SetFields(
@@ -627,6 +653,7 @@ def contract():
         [And(Txn.application_args[0] == approve_burn_selector, from_creator), approve_burn()],
         [And(Txn.application_args[0] == reject_burn_selector, from_creator), reject_burn()],
         [And(Txn.application_args[0] == mint_compensation_nft_selector, from_creator), mint_compensation_nft()],
+        [And(Txn.application_args[0] == send_burn_nft_certificate_selector, from_creator), send_burn_nft_certificate()],
         # setters
         [And(Txn.application_args[0] == set_fee_selector, from_creator), set_fee()],
         [And(Txn.application_args[0] == set_dump_selector, from_creator), set_dump()],

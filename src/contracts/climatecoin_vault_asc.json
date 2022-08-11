@@ -56,6 +56,15 @@
       "returns": { "type": "uint64" }
     },
     {
+      "name": "send_burn_nft_certificate",
+      "desc": "Send the certificate NFT to the user",
+      "args": [
+        { "name": "burn_app_id", "type": "application" },
+        { "name": "compensation_nft_id", "type": "asset" }
+      ],
+      "returns": { "type": "uint64" }
+    },
+    {
       "name": "reject_burn",
       "desc": "Reject the burn",
       "args": [
