@@ -184,7 +184,7 @@ def swap_nft_to_fungible():
             Txn.rekey_to() == Global.zero_address(),
             Txn.close_remainder_to() == Global.zero_address(),
             Txn.application_args.length() == Int(2),
-            Global.group_size() == Int(3),
+            Or(Global.group_size() == Int(4), Global.group_size() == Int(3)),
             # is the contract the minter of the NFT
             asset_minter.value() == Global.current_application_address(),
             # make sure were using the same asset
