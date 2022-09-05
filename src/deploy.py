@@ -20,8 +20,8 @@ testnet = True
 # delete the contracts when the script is done
 delete_on_finish = False
 # abort script after deploying and setting up the contracts
-only_deploy = True
-approve_burn = False
+only_deploy = False
+approve_burn = True
 #################
 
 token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -171,8 +171,8 @@ def demo():
             nft_total_supply = 250
 
             atc.add_method_call(vault_app_id, get_method(iface, "mint_developer_nft"), manager_addr, sp, manager_signer,
-                                [nft_total_supply, dump_app_id, dump_app_addr], note=metadata_json.encode(), )
-            results = atc.execute(client, 2)
+                                [nft_total_supply, dump_app_id, dump_app_addr, 'http://s3.eu-west-3.amazonaws.com:80/climatecoin-ico/develop/pexels_lumn_167699_562d54b79b.jpg'], note=metadata_json.encode() )
+            results = atc.execute(client, 4)
 
             created_nft_id = results.abi_results[-1].return_value
             print("Created nft {}".format(created_nft_id))

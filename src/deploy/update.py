@@ -14,9 +14,9 @@ token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 url = "https://node.testnet.algoexplorerapi.io"
 # indexer_url = "http://localhost:8980"
 indexer_url = "https://algoindexer.testnet.algoexplorerapi.io"
-deployer_mnemonic = "shift zebra bean aunt sketch true finger trumpet scrap deputy manual bleak arch atom sustain link ship rifle sad garbage half assault phrase absent tuition"
+deployer_mnemonic = "claim long sun pipe simple brick essay detail dash mass dose puzzle cash dream job invite motor casino rally vote honey grid simple able mystery"
 
-deployed_app_id=95682306
+deployed_app_id=104615380
 
 client = algod.AlgodClient(token, url)
 indexer_client = indexer.IndexerClient(

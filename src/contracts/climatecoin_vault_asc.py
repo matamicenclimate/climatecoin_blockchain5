@@ -31,7 +31,7 @@ BURN_CLEAR_TEAL = Bytes('base64', burn_clear)
 
 
 @Subroutine(TealType.none)
-def mint_climate_nft(normalize_fee, note):
+def mint_climate_nft(normalize_fee, note, image_url):
     dump_address = Sha512_256(
         Concat(Bytes("appID"), Itob(App.globalGet(DUMP_APP_ID))))
 
@@ -50,6 +50,7 @@ def mint_climate_nft(normalize_fee, note):
                 # TODO: do we need a clawback for this??
                 TxnField.config_asset_clawback: Global.current_application_address(),
                 TxnField.config_asset_default_frozen: Int(1),
+                TxnField.config_asset_url: image_url,
                 TxnField.note: note
             }
         ),
@@ -83,7 +84,7 @@ def mint_climate_nft(normalize_fee, note):
 
 
 mint_developer_nft_selector = MethodSignature(
-    "mint_developer_nft(uint64,application,account)uint64"
+    "mint_developer_nft(uint64,application,account,string)uint64"
 )
 
 
@@ -100,10 +101,12 @@ def mint_developer_nft():
     normalize_total = Div(total, multiplier)
     normalize_fee = div_ceil(fee, multiplier)
 
+    raw_image_url = Txn.application_args[4]
+
     return Seq(
         If(App.globalGet(MINT_FEE) != Int(0))
-        .Then(mint_climate_nft(normalize_fee, Txn.note())),
-        mint_climate_nft(normalize_total, Txn.note()),
+        .Then(mint_climate_nft(normalize_fee, Txn.note(), Substring(raw_image_url, Int(2), Len(raw_image_url)))),
+        mint_climate_nft(normalize_total, Txn.note(), Substring(raw_image_url, Int(2), Len(raw_image_url))),
         Int(1),
     )
 

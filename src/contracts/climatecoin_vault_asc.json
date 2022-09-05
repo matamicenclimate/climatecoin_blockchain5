@@ -42,7 +42,8 @@
       "args": [
         { "name": "total_supply", "type": "uint64" },
         { "name": "dump_app_id", "type": "application" },
-        { "name": "dump_app_address", "type": "account" }
+        { "name": "dump_app_address", "type": "account" },
+        { "name": "image_url", "type": "string" }
       ],
       "returns": { "name": "developer-nft-id", "type": "uint64" }
     },
